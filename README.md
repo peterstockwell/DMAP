@@ -79,7 +79,10 @@ files.  An option exists to build diffmeth without zlib, but then
 input is limited to sam files or CpG position lists.
 
 Distribution: source code is distributed as a compressed tar archive
-which can be unpacked by:
+or as a git clone.  There are two options:
+
+1. Downloading DMAP-main.zip from github.com/peterstockwell/DMAP will
+generate a local file which can be unpacked with:
 
 unzip DMAP-main.zip
 
@@ -89,9 +92,17 @@ include - containing some of the generic header files
 data - containing contam.fa - the complete cleanadaptors data set
 src - containing the rest of the source code and Makefile.
 
-The set can be built with the following commands:
+2. Using 'git clone https://github.com/peterstockwell/DMAP' which will
+download the DMAP directory:
+
+In either case the set can be built with the following commands:
 
 cd DMAP-main/src
+make
+
+or
+
+cd DMAP/src
 make
 
 Some warnings may appear but these can be ignored.  The executables
