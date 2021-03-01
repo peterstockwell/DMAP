@@ -1,0 +1,1361 @@
+	  Programs and Scripts for Bisulphite Sequence Data
+
+Peter A. Stockwell
+Dept of Biochemistry,
+University of Otago,
+Dunedin, New Zealand.
+
+peter.stockwell@otago.ac.nz
+
+20-Apr-2017
+----------------------------------------------------------------------
+
+rmapbsbed2cpg
+bin_cnts
+mkrrgenome
+cleanadaptors
+diffmeth
+identgeneloc
+
+illum2fasta.awk
+mk4to1lines.awk
+bismmethex2list.awk
+tidyrrnams.awk
+getcpgpcmeth.awk
+
+These programs have been written in the course of work on differential
+CpG methylation of the human genome and represent a series of tools
+for preparing, modifying and analysing these data.  The work has
+particularly focussed on reduced representation (RR) bisulphite
+sequencing (RRBS) as in Meissner, et al., 2008, Nature, 454, 766-770,
+Smith, et al., 2009) Methods, 48, 226-232 and Gu, et al., 2011, Nature
+Protocols, 6, 468-481.  This software should, none-the-less, have
+wider application than that.  From v1.70 the diffmeth program will now
+handle non-CpG methylation.
+
+This package has been published in: Stockwell, P.A., Chatterjee, A.,
+Rodger, E.J. and Morison, I.M. "DMAP: Differential Methylation
+Analysis Package for RRBS and WGBS data" Bioinformatics (2014) DOI:
+10.1093/bioinformatics/btu126.
+
+This is research software so that it is not necessarily easy to use,
+although it should work correctly as intended.  It works from a Unix
+(MacOS X) or Linux command line interface: the notes below describe the
+functionality and format of intermediate files where appropriate.
+This code has been generated and tested on a MacOS X system (10.6)
+using gcc v4.2.1 and on various Linux platforms (RedHat, Centos,
+Fedora, Ubuntu) but is written to compile and run on any appropriate
+C compiler and environment.  The size of files and data required for
+this work will generally require a 64 bit environment.  Awk scripts
+have been developed for the Gnu AWK (gawk) distributed with MacOS X
+but, again, they should run in other comparable environments.
+
+A previous requirement for the GNU database system gdbm to be
+installed has been removed in releases from June 2014.
+
+cleanadaptors V1.22 and later require zlib (data compression library),
+preferably 1.2.5 or later.  This is available from www.zlib.net and
+should be built and installed in accordance with instructions.
+
+diffmeth 1.60 and later also require zlib in order to process bam
+files.  An option exists to build diffmeth without zlib, but then
+input is limited to sam files or CpG position lists.  The change has
+also necessitated a change in one of the program options: -z is now
+used to control bam/sam file usage - the no X,Y chromosome option is
+now -Y.  Note that the -G method of giving chromosomal information is
+preferred and makes the -Y option superfluous.
+
+Distribution: source code is a compressed tar archive which can be
+unpacked with a command like:
+
+gzip -dc meth_progs_dist_v2.tar.gz | tar -xvf -
+
+generating a directory meth_progs_dist containing two directories:
+include, containing some of the generic header files and src
+containing the rest of the source code and Makefile.  The set can be
+built with the following commands:
+
+cd meth_progs_dist/src
+make
+
+Some warnings may appear but these can be ignored.  The executables
+will be in the src directory - no install targets are provided, the
+completed executables (rmapbsbed2cpg bin_cnts scan_cpg_depth
+mkrrgenome cleanadaptors identgeneloc diffmeth) should be manually
+copied to an appropriate directory (e.g. /usr/local/bin).  The awk
+scripts are in the src directory and may similarly be copied somewhere
+useful.
+
+If compilations fail with the error "undefined reference to
+`gzbuffer'" then you are using an older version of zlib.  If updating
+zlib (see above) is not possible then execute:
+
+make clean
+make nogzbuffer
+
+which should build the package successfully.  The gzbuffer() call is
+made to improve the effectiveness of zlib compression, but it is
+dispensible.
+
+If the diffmeth compile fails through the lack of zlib, then this
+should be obtained and installed (see above).  If that is not possible
+then you can build the programs without zlib, but it will not be
+possible to read bam files or process gz compressed fastq with
+cleanadaptors.  To do this execute:
+
+make nozlib
+
+In this event, it will be necessary to convert .bam files to .sam
+which can be done with samtools with commands like:
+
+samtools view -h mybamfile.bam > mybamfile.sam
+
+cleanadaptors can be used by prior decompression of the fastq files
+with commands like:
+
+gzip -dc myfastqfile.fastq.gz > myfastqfile.fastq
+
+----------------------------------------------------------------------
+rmapbsbed2cpg
+
+Converts a rmapbs BED file or a bsmap output file to a tab-separated
+list of Chromosome Position Methylation_status where: 
+
+Chromosome is one of 1,2,3..22,X,Y (for Human) or as defined in
+  chromosome information file (-G option)
+Position is an integer
+Methylation_status is + or -
+
+This form is suitable for reading into SeqMonk [Text (Generic) format]
+or for other programs in this set (cnt_cpg_bins, scan_cpg_depth,
+diffmeth).
+
+Format of the source files is as documented for the Rmap programs
+(Smith, et al. 2008, BMC Bioinformatics, 9, 128-135.).  The format for
+bsmap 1.02 is approximately as documented in the README.txt
+distributed with that program (Xi & Li, 2009, BMC Bioinformatics, 10,
+232-240), although the actual output is not wholly consistent with
+their notes.  Further, the output format has been changed at some
+point, bsmap 1.2 output is now accepted.
+
+rmapbsbed2cpg expects either a file of reads in FASTQ format or in
+FASTA format with a single entry for each read, and with no quality
+information.  The included script illum2fasta.awk will generate such a
+file from the FASTQ original, noting that the header for each sequence
+is shortened in the following way:
+
+HWI-EAS209_0006_FC706VJ:1:4:1135:18558#0/1
+
+becomes:
+
+>S1_4_1135_185558
+
+or generally
+
+>S{LaneNo}_{TileNo}_{Xpixel}_{Ypixel}
+
+so that each read can be related back to its original FASTQ form. This
+form is that generated by the illum2fasta.awk script included in the
+distribution.
+
+rmapbsbed2cpg will now correctly manage HiSeq flowcells with different
+tile numbers from the original GAII flowcells.  Also V3 of the
+chemistry is managed (see -v and -V) options.
+
+Chromosome sequences are expected as FASTA files with a single entry
+for each chromosome in its own file (as for the GRCh37 build used by
+Bismark/SeqMonk).  Each chromosome file name should end <n>.fa where
+<n> is 1,2,3..22,X,Y (for human).  The program allows for the complete
+set to be addressed by an absolute or relative path (e.g.
+/Volumes/SomeDiskName/HomoSapiens_genome/hs_ref_GRCh37/Homo_sapiens.GRCh37.59.dna.chromosome.
+or ../../WhereIPutThem/Homo_sapiens.GRCh37.59.dna.chromosome. ).
+Alternatively, the -G option lets each chromosome be specified by its
+own identifier (which need not be 1,2,...,X,Y) and the fasta file
+containing the sequence.  This option, as for other programs in the
+set, permits avian chromosome sets, mitochondrial sequences and for
+the various files to be distributed in different places.
+
+Program Options:
+
+rmapbsbed2cpg (v2.32): generate list of CpG positions from rmapbs BED file
+Options:
+     -r <readfile> reads from Fasta fmt. <readfile>
+     -R <readfile> reads from fastq <readfile>
+     -v HiSeq V3 flowcell, V2 chemistry (def V2 GAII flowcell)
+     -V HiSeq V3 flowcell, V3 chemistry (def V2 GAII flowcell)
+     -b <bedfile> read match information from <bedfile> (rmapbs bed format)
+     -B <bsmapfile> read match information from <bsmapfile> (bsmap V1.02 output format)
+     -A <bsmapfile> read match information from <bsmapfile> (bsmap V1.2 output format)
+     -p <posfile> read RR sections (mkrrgenome -m output) from <posfile>, count hits/misses
+     -g <genomehead> dir and file string to locate genomic seq files by adding n.fa
+ or  -G <chrinfofl> chromosome IDs & get genomic seq filesfrom <chrinfofl>
+     -k <maxchrno> allow upto maxchrno different chromosomes (def = ChrY, 24)
+     -z don't expect XY chromosomes, just numbers (def=do)
+
+-v & -V interpret tile numbers as for HiSeq flowcells, versions 2 & 3
+chemistry, respectively.  By default GAII flowcells are expected with
+tile numbers 1..120.  When the other options are selected, the program
+remaps the file numbers 1101..2308 to successive integer values in
+order to minimise internal array dimensions.
+
+Output is to stdout.
+
+The program works by loading the reads into a series of linked lists
+by tile number.  Each chromosome is read into a long string in RAM,
+pre-malloc()ed to contain an adequately long sequence.  The aligned
+read information from the BED or bsmap files is read and the
+positional information is used to set start & stop locations for each
+read in the tile-based linked list repository.  Difficulty was
+encountered with bsmap runs where some run options will generate
+shortened read alignments and for which out-by-one position errors
+were evident.  Shortened reads require that the original FASTA file
+sequence read is replaced by the actual bsmap-returned alignment read
+and appropriate position corrections made.
+
+The program uses linked lists in order to prevent array-length limits
+from restricting operation arbitrarily and between that and the need
+to store the complete sequence of each chromosome poses large RAM
+requirements.  Linear scanning through linked lists also takes time
+and while strategies could be devised to improve this performance, the
+present execution time and RAM needs are acceptable.  Running some
+15e06 reads against the human genome on the development machine (Mac
+Pro, Duo Quad Core 2.8GHz) takes several hours and requires some 8Gb
+RAM.  (The code is single threaded and does not, itself, benefit from
+multiple cores.)
+
+A typical run might look like
+
+rmapbsbed2cpg -r myfastafmtreads.fa -b rmapbsoutput.bed -g
+/Volumes/VMWare/HomoSapiens_genome/hs_ref_GRCh37/Homo_sapiens.GRCh37.59.dna.chromosome. >
+myrmapbscpglist.txt
+
+where the whole command is complete on one line.
+
+or:
+
+rmapbsbed2cpg -r myfastafmtreads.fa -b rmapbsoutput.bed -G hs_GRCh37_chr_info.txt \
+ > myrmapbscpglist.txt
+
+where hs_GRCh37_chr_info.txt contains lines like:
+
+1 /Volumes/Data2/HomoSapiens_genome/hs_ref_GRCh37/Homo_sapiens.GRCh37.65.dna.chromosome.1.fa
+10 /Volumes/Data2/HomoSapiens_genome/hs_ref_GRCh37/Homo_sapiens.GRCh37.65.dna.chromosome.10.fa
+
+See the diffmeth documentation (below) for more details of chromosome
+information files.
+
+----------------------------------------------------------------------
+bin_cnts:
+
+Still under significant development: to take CpG positions as
+generated by rmapbsbed2cpg or the Bismark methylation_extractor
+programs and store the counts in a series of bins which are generated
+in a series of different ways.  The program further aims to produce
+figures for differential methylation by the method of Li, et al.
+(2010, PLOSBiology,11,e1000533) and contains procedures to assist with
+bin selection for that.  RRBS based bin selection is supported and the
+program output allows either the contents of such bins to be listed
+or, optionally, for the counts which miss such bins to be shown, in
+order to indicate when aligners are mapping reads outside expected RR
+regions.  The program is also capable of generating pseudo feature
+table information for SeqMonk so that RR genomes can be annotated with
+RR fragment positions.
+
+The source file(s) for -r & -R options are as generated by
+rmapbsbed2cpg.
+
+Chromosome source files (-g option) are specified as for
+rmapbsbed2cpg.
+
+Options:
+
+bin_cnts: create binned counts for chromosomal positions
+Options:
+     -r <posfile> read <posfile> as set of chr posit strand/meth
+     -R <posfile2> as -r but for 2nd position file
+     -b <binlength>: set bin length (def=1000)
+     -g <genomehead> dir and file string to locate genomic seq files by adding n.fa
+     -l/-L list bins (-L=>only nonzero bins)
+     -m scan for diff meth regions restricted rep (Li, et al. (2010) PLOSBiology,11,e1000533)
+     -M <j,k> scan for restricted rep fragment sizes between j & k residues. Make bins
+     -N as for -M but list bins to stdout
+     -k as for -M, but note reads which don't map into restricted rep bins
+     -K as for -k, but only print totals for meth & unmeth counts
+     -S <dirheader> write .dat files to <dirheader> for RR genome for SeqMonk
+     -c <n> restrict effort to Chromosome <n> (def = all chromosomes)
+     -C <n> restrict bins to those with <n> or more CpGs
+     -A attempt to amalgamate restr rep regions that might otherwise fail CpG criteria
+(     -x <excludefile> exclude regions (fmt: Chrno regionstart
+regionend) 
+
+Output is generally to stdout, excepting the -S option.
+
+The -c option to restrict operation to a single selected chromosome is
+really only for developing the program in order to speed up checking
+its operation.
+
+The -M, -N, -k & -K options use the MspI recognition/cleavage site
+C^CGG and the j,k size range to select valid fragments.  If either j
+or k is zero, then that limit is not applied (e.g. -M 0,220 will
+include all MspI fragments from zero to 220 residues; -m 50,0 will
+include all fragments over 50 residues).  Note that the program
+applies the limits precisely whereas fragment size selection on a gel
+will never be so exact.
+
+The -x option to exclude some chromosomal regions has not been
+implemented yet.
+
+Differential methylation (-m option) is yet to be implemented.
+
+Like rmapbsbed2cpg, bin_cnts used linked lists for internal data
+storage in order to avoid arbitrary limits.  The strategy for scanning
+genomic sequences for CCGG and CpG sites avoids the need to load
+chromosome sequences into RAM.  The consequences are that bin_cnts has
+a lesser memory footprint that rmapbsbed2cpg although moderate run
+times can be expected.
+
+Typical use might be:
+
+bin_cnts -r myrmapbscpglist.txt -g
+/Volumes/VMWare/HomoSapiens_genome/hs_ref_GRCh37/Homo_sapiens.GRCh37.59.dna.chromosome.
+-M 40,220 -L > mynonzero40_220bins.cnts
+
+will list the nonzero bins for 40 to 220 bp MspI fragments to a file
+mynonzero40_220bins.cnts.
+
+bin_cnts -r myrmapbscpglist.txt -g
+/Volumes/VMWare/HomoSapiens_genome/hs_ref_GRCh37/Homo_sapiens.GRCh37.59.dna.chromosome.
+-k 40,220 > missed40_220bins.cnts
+
+will list bins which contain counts that don't fit in the 40-220 RR
+genome bins.
+
+bin_cnts -r myrmapbscpglist.txt -g
+/Volumes/VMWare/HomoSapiens_genome/hs_ref_GRCh37/Homo_sapiens.GRCh37.59.dna.chromosome.
+-K 40,220
+
+will return to stdout (terminal) methylated and unmethylated total counts
+which miss the RR genome bins.
+
+----------------------------------------------------------------------
+scan_cpg_depth:
+
+NOTE: the code for this program is out of date and needs extensive
+revision to allow for non-human genomes, SAM & BAM file input and
+alternative nuclease recognition sites.  This work is in progress but
+incomplete, so scan_cpg_depth is not compiled as part of the current
+distribution.
+
+Scans for the read depth of CpG positions on the genome.  Also will
+list reads which don't map to CpGs in order to track down problems.
+Returned information is a raw list of CpG positions with the counts,
+statistics (mean, median and mode and standard deviation of count
+distribution) or a histogram of count frequencies.
+
+The source file (-r option) is as generated by rmapbsbed2cpg.
+
+Chromosome source files (-g option) are specified as for
+rmapbsbed2cpg.
+
+scan_cpg_depth: scan for CpG read depth for all or selected chromosomes
+Options:
+     -r <posfile> read <posfile> as set of chr posit strand/meth
+     -g <genomehead> dir and file string to locate genomic seq files by adding n.fa
+     -C <m> use cluster size of <m> for chromosome positions, Def=1000
+     -l list each CpG to stdout with counts
+     -c <n> restrict to Chromosome <n> 1..22,X,Y. Def=all
+     -p Permit out-by-one positions (e.g. Bismark complementary strand CpGs) def=don't
+     -S generate statistics (range, mean, std deviation, etc. for counts
+     -H generate histogram of counts
+     -m list missed CpG lines
+     -n list CpG hits (Nonmisses)
+     -z omit zero count from histogram
+
+Output is to stdout.
+
+The -C clustersize option is to control the scheme which allows rapid
+lookups into the linked lists of chromosomal CpG positions to prevent
+the program from taking excessively long to execute.  The default
+cluster size is 1000, decreasing it will increase the memory
+requirements, but decrease execution time.  Conversely...
+
+The genome files are specified by the -g option, as above.
+
+-l will generate a very lengthy list of CpG positions and the + & -
+counts for each.
+
+-S generates statistics for the depth of hits at each CpG.  Note that
+this presently includes the 0 count bin which probably produces
+misleading values, since typical RR runs will not hit all CpGs.
+
+-H produces a printer-type histogram of count frequencies.  Since the
+zero count bin will always contain unhitable CpGs, the -z option is
+offered to scale the histogram to the highest non-zero count.  Note
+that the statistics output (-S) is not altered by -z.
+
+For diagnostic purposes, the -m and -n options are given to produce a
+list of the missed or hit positions respectively before other output
+options are processed.
+
+For reads pairing to the complementary sequence some aligners
+(e.g. Bismark v 0.2.3 methylation_extractor) produce alignment
+positions that are out-by-one.  The -p option will permit positions to
+be out by one residue in order to use all of the read data.
+
+e.g.:
+
+----------------------------------------------------------------------
+mkrrgenome:
+
+Scans fasta files for MspI (C^CGG) or other cleavage positions and
+concatenates the fragments for each chromosome which fit into a
+specified size range into a single contiguous sequence in a fasta
+file.  Optionally generates a list of those positions.  V1.2 (or
+later) permits runs with non-human chromosome sets. Further, v1.22 (or
+later) also enables a file of chromosome IDs and file names with the
+-G option.
+
+./mkrrgenome (v1.23): generate reduced representation genome files for MspI (or other) digests
+Options:
+     -g <genomehead> dir and file string to locate genomic seq files by adding n.fa
+ or  -G <chr_info_file> file of chromosome IDs and filenames
+     -k <MaxCNo> set maximum chromosome number (def = ChrY for Humans)
+     -z Don't expect X/Y chromosomes, only numbered names (def=do)
+     -c <C_no> restrict activity to chromosome C_no (1..22,X,Y), def = all
+     -M <j,k> scan for restricted rep fragment sizes between j & k residues. (def=40..220)
+     -m <j,k>   ditto, produce tab delimited list of positions to stdout
+     -p <j,k> generate tabbed list of CpG positions for j-k fragments
+     -P generate tabbed list of all CpG positions
+     -H <desthead> dir & file string for output genome files (-M), completed with n.fa
+     -n <restrictionfile> - use sites in <restrictionfile>, def=MspI
+
+Input files are specified with the -g or -G options as previously. The
+-g option requires each chromosome to be present as a separate file
+which can be located by adding <n>.fa where <n> is a chromosome number
+or X,Y. -G requires each chromosome to be a in a separate file but
+takes the chromosome ID and the corresponding file from lines in a
+text file.  This permits wider variation in chromosome naming, file
+location and the ability to process various subsets of chromosomes.
+
+Output is to a fasta file for each chromosome processed - the pathname
+and initial file name for the whole series is specified by the -G
+option.
+
+Desired fragment size is specified for the -M, -m & -p options as two
+comma-separated values for the minimum and maximum values.  Giving a 0
+as one of the values will disable that comparison so that, for
+instance, -M 0,150 will use all fragments up to 150 bp while -M 40,0
+will save all fragments over 40 bp.
+
+Options:
+
+-M generates a fasta file of the valid RR fragments concatenated into
+a single sequence for each chromosome specified.
+
+-m perform the same scan as -M but generate a tab-delimited list of
+the relevant positions to stdout.
+
+-p generate a tabbed list of CpG positions for all valid RR fragments
+to stdout.
+
+-P generate a tabbed list of all CpG positions to stdout.
+
+-k set the maximum chromosome number - allows use with genomes other
+than human.  The number given should be the number of different
+chromosomes: e.g. human with 22 chromosomes + X + Y would require
+-k 24.
+
+-z disable XY labelling for 2 highest number chromosomes.  Necessary
+for organisms like Danio rerio which has a diploid set of 25
+chromosomes but no sex chromosomes.
+
+-c restrict operation to a specific chromosome - really for testing
+purposes.
+
+-n use a file of restriction sites instead of the default MspI site
+for cleavage.  The format of the file is as for diffmeth -n (see
+below).
+
+mkrrgenome uses a finite-state-machine (FSM) method for the rapid
+scanning of chromosomal sequences for CCGG sites and for quantifying
+CpGs.
+
+e.g.: 
+
+mkrrgenome -g \
+/Volumes/Human_genome/GRCh37/Homo_sapiens.GRCh37.59.dna.chromosome. \
+-M 20,240 -G myRR_20_240genome/rrChr
+
+will process each of the files
+Homo_sapiens.GRCh37.59.dna.chromosome.1.fa, etc. to a RR genome for
+size 10..240 MspI fragments saving each chromosome as rrChr1.fa,
+etc. in the local directory myRR_20_240genome.  The fasta headers will
+resemble:
+
+>1rr reduced repr 20..240 for MspI digest Chr1 7215473/249250621bp CpG: 413964
+
+or e.g.:
+
+mkrrgenome -g \
+/Volumes/Human_genome/GRCh37/Homo_sapiens.GRCh37.59.dna.chromosome. \
+-c 22 -m 20,240
+
+will generate a listing with a line for each MspI fragment in the size
+range 20..240 bp of chromosome 22 like:
+
+22	16054424..16054453 (30 bp) CpG: 3
+22	16060689..16060841 (153 bp) CpG: 2
+22	16075293..16075412 (120 bp) CpG: 3
+22	16075413..16075526 (114 bp) CpG: 2
+22	16075527..16075627 (101 bp) CpG: 5
+22	16085649..16085716 (68 bp) CpG: 4
+22	16086414..16086578 (165 bp) CpG: 3
+22	16086912..16086959 (48 bp) CpG: 2
+22	16094410..16094476 (67 bp) CpG: 3
+22	16096038..16096177 (140 bp) CpG: 7
+
+----------------------------------------------------------------------
+cleanadaptors:
+
+Check FASTQ or FASTA sequence read files for adaptor sequences and
+trim them if desired.  The use of short RR libraries can result in
+longer Illumina reads sequencing through into the adaptor sequence
+giving reads that may fail to align even although the pre-adaptor
+section is valid.  Alternatively, if reads containing a significant
+length of adaptor succeed in aligning then they are more likely to be
+erroneously placed and will contribute unwanted bias to analyses.
+
+cleanadaptors uses a finite-state-machine (FSM) to provide a very
+efficient means of finding leading fragments of adaptor sequences,
+then completes the checks by comparing the trailing sequence with the
+whole adaptor to ensure that a reasonable degree of similarity is
+achieved.  Since read qualities deterioriate at higher cycle numbers,
+complete matching is not expected.
+
+Version 1.2 of the program now allows for pair-end runs in which the
+pairing is maintained and it further permits quality trimming and
+truncation to a maximum length.  Adaptor sequence files can be in
+either simple text or fasta formats.
+
+Version 1.22 is able to read/write gzip compressed data files.
+
+Output options include listing the source data with adaptor matches
+indicated in the listing (-f), or to have the reads trimmed to remove
+any adaptor sequences which achieve criteria for matching (-F).  In
+order to trace operation of the program, match listings can show only
+reads which do match (-H).
+
+cleanadaptors v1.22: scan Illumina reads for adaptor seqs: Trim FASTA/FASTQ files
+Options:
+     -i <adaptorfile> file of adaptor seqs (1/line)
+     -I <adaptorfile> fasta file of adaptor seqs
+     -a max adaptor length (def=256)
+     -m min leading match for adaptor (def=6)
+     -M margin at read end for trimming (def=0)
+     -R readfile buffer length (def=256)
+     -s <skipres> skip <skipres> on each read before checking matches
+     -p <%> % match threshold with adaptor sequence for hit (def=85.0%)
+     -S enable single base mismatches (def=disallow)
+     -L print fsm to stdout
+     -F <readfile>: run scan on <readfile> FASTQ/FASTA fmt, trim matching ends
+     -x <lengthlimit>: only save trimmed reads exceeding length limit (def=1)
+     -t <3'trimlength>: take further 3'trimlength bases before adaptor match (def=0)
+     -q <phredscore> quality trim reads to longest section > Q<phredscore> (def=don't)
+     -Q <qualbase> change base for quality scores (def=33)
+     -N <readfile>: fill lines with 'N's rather than trimming
+     -f <readfile>: run scan on <readfile> FASTQ/FASTA fmt, show all reads, indicate matches
+     -H <readfile>: run scan on <readfile> FASTQ/FASTA fmt, indicate matches on hit reads only
+     -G <read2file>: paired end input: trim both ends, retain valid paired reads
+     -l <trimlength> max length for output reads (def=nolimit)
+     -z enable gzip compression input & output. Positional (def=nocompression)
+     -Z disable gzip compression. Positional: effects following -F,-G,-o,-O files (def=-Z)
+     -o <dstfile>: write output to dstfile (read1 data for paired ends) def=stdout
+     -O <r2dstfile>: output file for read2 - needed for paired run
+       if <readfile> is '-', then use stdin, for uncompressed input
+
+Options:
+
+-i,-I <adaptorfile> opens the adaptor sequence file, either 1 per line
+(-i) or a fasta format file (-I).  If neither of these options is
+used, the program omits adaptor trimming, but will still perform
+quality trimming and will apply length limits to the output.
+
+-a : Only necessary if the length of any adaptor sequence exceeds 256
+bp.
+
+-m sets the minimum length for an initial adaptor match.  The default
+(6) is a reasonable value.  Note that enabling single base mismatches
+(-S) will reduce the required match by 1 over this length.  See -T
+option for RRBS data.
+
+-M sets the 3' margin for matches before reads will be trimmed.  So, a
+value of 10 would only trim if the adaptor match was in the last 10
+residues of the read.  The default is 0 which means don't apply this
+criterion.
+
+-R sets the read buffer length and is only necessary if reads or
+header lines exceed 256 characters.
+
+-s sets the number of residues skipped before adaptor matches will be
+checked.  Clearly if a reduced representation library of say 40-220 bp
+has been used, then there should be no need to check for adaptor
+sequences before 40 bp of each read, hence setting -s 40 would achieve
+this, giving a marginal increase in performance.
+
+-p sets the % match of read vs entire adaptor sequence, from the point
+where the match begins till the end of the read or the adaptor.
+85.0% is the default.  The performance of the program does not seem to
+be very sensitive to this value, increasing it from the default to 90%
+only makes a marginal change in the number of residues trimmed on real
+data.
+
+-S enables single base mismatches during the FSM scan operation and
+may help if there is a significant tendency for single residue read
+errors.  This option extensively lengthens the time taken to build the
+FSM, since it causes each base position to be expanded to A,C,G & T
+for all of the adaptor lengths from the minimum to the full length.
+Given that the default scanning looks for a 6 bp match to the start of
+the adaptor sequence and then checks for 85.0% or greater match over
+the full adaptor length, this option is probably not really needed, so
+the default is for it to be disabled.
+
+-t trims further back into the read in case it is necessary to remove
+library generating artifacts between the adaptor and the read proper.
+Requires an integer value.  This is applied before size checking with
+the -x option.  This option is particularly relevant for RRBS data.
+
+-L lists the FSM to stdout: no read scanning is done.  This is really
+for checking the FSM-building process.
+
+-f lists the entire read file with adaptor matches and their quality
+shown.
+
+-H similar to -f, except that only reads which have matches meeting
+the criteria are shown.  For testing purposes mainly.
+
+-F,-G perform the trim operation, writing the trimmed data to stdout
+or the defined -o output file for -F, and to the -O file for -G.  When
+both -F & -G are used on paired end reads, the matching of paired ends
+between the reads is conserved.  Resulting sequences shorter than the
+limit defined by -x and their headers are suppressed.  The -f, -H & -F
+options will accept '-' as a file specification so that cleanadaptor
+runs can be piped together with a command like:
+
+cleanadaptors -I contam.fa -F src_r1.fastq | cleanadaptors -I contam.fa -H -
+
+which will read the original reads from src_r1.fastq, trim with
+adaptors from contam.fa then display any remaining matches.  The
+option of using cleanadaptors as a pipe is not available for the
+second read in paired end runs - the -G and -O options will require
+valid source and destination file names.
+
+-x sets the minimum length for a trimmed read to be saved, defaults to
+1.  The Bowtie aligner used by Bismark requires a minimum of 4 bp, so
+this option can be used to suppress the rejection of shorter trimmed
+reads at the alignment stage.  Setting the limit to zero disables the
+check.
+
+-N replaces trimmed sequence (and quality chars) with 'N's in order to
+conserve the line length.  Rmapbs seems to require this.  The effects
+of -x are as for trimmed lines.  In the unlikely event that it is
+desired to write out lines which have no untrimmed sequence, then -x 0
+will permit that.
+
+-l allows a maximum output length to be enforced.  All output reads
+will be equal to or less than the length specified.
+
+-q allows quality trimming of reads (for fastq files) to the quality
+score specified.  The default setting is for phred quality scoring
+starting with a base of 33 ascii.  The -Q option can be used to change
+the base.
+
+-Q allows the base for quality trimming to changed. The default is -Q
+33 for phred quality scoring as used from bcl2fastq V 1.8.3.
+
+-o,-O specify output files for the first (-F) and second (-G) reads.
+If a single read is being processed, then -F can be used with a '-' to
+take input from stdin and the default output is to stdout, enabling
+cleanadaptors to function as part of a Unix/Linux pipeline.  Paired
+end runs can use this form of pipe and redirection for the first read,
+but the second must be specified by giving valid source and
+destination files to the -G and -O options.  It would be more usual to
+give source and destination files for both -F, -G and -o,-O in such
+cases.
+
+-T specify 5' truncation from the start of each adaptor sequence.
+Experience with RRBS data shows that some trimmed reads contain
+adaptor sequence which has misreads in the first two positions so that
+they are not deleted.  This option allows cleanadaptors to use the FSM
+strategy and still delete adaptor sequences which have an early
+mismatch: e.g. with -T 2.  This option (like -t) is probably only
+relevant for RRBS data - tests with real data have shown that fastqc
+may find remaining contaminating adaptors unless this option is used.
+
+-z,-Z control gzip compression for source and destination files.
+These parameters are positional and will exert their effect for input
+and output file specifications following them on the command line.
+Multiple uses are possible to enable/disable compression for the
+different files.  If compression is used, the default stdin and stdout
+source/destination files are not available.  See examples below.
+
+Examples:
+
+Trim adaptors from contam.fa for paired ends with Q20 and minimum
+output length of 50 bp:
+
+cleanadaptors -I contam.fa -q 20 -x 50 -F src_r1.fastq \
+ -o trim_r1.fastq -G src_r2.fastq -O dst_r2.fastq
+
+Just do Q20 trimming with minimal output length of 50, single ended:
+
+cleanadaptors -q 20 -x 50 -F src_r1.fastq > dst_r2.fastq
+
+Trim adaptors with minimum output length of 50, max 100 bp, single
+ended:
+
+cleanadaptors -I contam.fa -x 50 -l 100 -F src_r1.fastq -o dst_r1.fastq
+
+Trim adaptors from and to compressed fastq files:
+
+cleanadaptors -I contam.fa -z -F src_r1.fastq.gz -o dst_r1.fastq.gz
+
+Trim adaptors from uncompressed to compressed fastq:
+
+cleanadaptors -I contam.fa -F src_r1.fastq -G src_r2.fastq -z -o dst_r1.fastq.gz \
+  -O dst_r2.fastq.gz
+
+Trim adaptors from compressed to uncompressed fastq:
+
+cleanadaptors -I contam.fa -z -F src_r1.fastq.gz -G src_r2.fastq.gz \
+  -Z -o dst_r1.fastq -O dst_r2.fastq
+
+----------------------------------------------------------------------
+illum2fasta.awk
+
+a script which converts illumina fastq read files into fasta format.
+The header lines are simplified in a way which reduces the read IDs
+significantly in length but retains lane number, tile number and pixel
+coordinates so that it remains possible to trace back to the original
+fastq reads.  For instance, the fastq lines
+
+@HWI-EAS209_0006_FC706VJ:1:1:1132:9986#0/1
+CGGGTTTGGGTGGAGATTTTTTTTTTATGAAATATCGTTTTTGCGTGGTGTTTGGTTTTGTTTTTTTTTTTGTGTTTTTTTTTTTTTGTTTTTTGTGTTT
++HWI-EAS209_0006_FC706VJ:1:1:1132:9986#0/1
+ddbd_ccccc^ccR\L\Q]^caBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB
+@HWI-EAS209_0006_FC706VJ:1:1:1134:20156#0/1
+CGGCGTTGTTTATGTTGGTTGGGTTTGGTATGTGATTTAGTATTTTGTTTTTTTGGGTTGGGTTGGGGGGGTTGGTTTTTTTTTGGTTTGTTGGGGTGTG
++HWI-EAS209_0006_FC706VJ:1:1:1134:20156#0/1
+dddcddaddddRdddcddd`dd\dd`L`_LR\UZF`b`L^WTNa^BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB
+
+become:
+
+>s1_1_1132_9986
+CGGGTTTGGGTGGAGATTTTTTTTTTATGAAATATCGTTTTTGCGTGGTGTTTGGTTTTGTTTTTTTTTTTGTGTTTTTTTTTTTTTGTTTTTTGTGTTT
+>s1_1_1134_20156
+CGGCGTTGTTTATGTTGGTTGGGTTTGGTATGTGATTTAGTATTTTGTTTTTTTGGGTTGGGTTGGGGGGGTTGGTTTTTTTTTGGTTTGTTGGGGTGTG
+
+Clearly the quality lines are eliminated, but the other information is
+coerced into a form which should be valid for FASTA file readers.
+
+Use: run with awk.  The output is to stdout, so normal redirection
+will work.
+
+e.g.:
+
+awk -f illum2fasta.awk s_1_sequence.txt > s_1_fasta.fa
+
+The script is relatively rapid, processing 18x10^6 100bp reads took
+about 7 minutes on a Mac Pro with dual quad core Xeon 2.8 GHz CPUs
+though only a single core was employed.  Far too rapid to be bothered
+writing something more efficient.
+
+----------------------------------------------------------------------
+mk4to1lines.awk
+
+a script to write each group of 4 fast2 lines to a single line for the
+purposes of filtering bad tiles using Unix/Linux commands.  The
+process is easily reversed using the tr command.  The new line
+characters for each read are replaced with a default of ';'.
+
+For instance in an experiment it is wished to eliminate tiles 1, 2, 3,
+40, 63, 119 & 120 due to airbubbles or inferior performance at flow
+cell extremes.  So a series of lines matching the fastq header lines
+for that series of poor tiles, like:
+
+FC706VJ:1:1:
+FC706VJ:1:2:
+FC706VJ:1:3:
+FC706VJ:1:40:
+FC706VJ:1:63:
+FC706VJ:1:119:
+FC706VJ:1:120:
+
+would be written to a text file (kill_tiles.txt for example), then the
+complete reads for those tiles could be deleted from the experiment by
+the following command:
+
+awk -f mk4to1lines.awk s_1_sequence.txt | grep -v -f kill_tiles.txt | \
+tr ";" "\n" > s_1_seq_filtered.txt
+
+in which the grep command will pass all lines not matching any entries
+in the kill_tiles.txt file and the tr command restores ';' line
+separators to Unix/Linux new lines.
+
+The default line separator for this script can be altered by the
+following, in this case to a '!':
+
+awk -f mk4to1lines.awk -v catchar='!' s_1_sequence.txt
+
+The value of this script and these operations may be less important
+for HiSeq information, since the reduced number of tiles will cause
+too much data to be discarded in comparison with the Illumina GAIIx
+platform.
+
+----------------------------------------------------------------------
+bismmethex2list.awk
+
+a script to generate simple tab-delimited lists of chromosome No,
+position, methylation status from the output of the BisMark
+methylation_extractor program.  This leaves the data in a form which
+is amenable to further processing by scan_cpg_depth or bin_cnts.
+
+The operation is very simple, the extractor produces lines ending in
+'Z' for methylated CpG and 'z' for unmethlated.  This script just
+converts these to +/-.
+
+Changes in header lines from CASAVA 1.8 have required a modification
+since more fields are now written to the output file.  The variable
+zcol defines where the script expects the 'Z' & 'z' chars to be.  zcol
+presently defaults to 5 for GAII style headers, but should be defined
+to 6 for HiSeq output.
+
+Use:
+
+awk -f bismmethex2list.awk CpG_CTOT_s_1_sequence.txt_bismark.txt
+
+or
+
+awk -f bismmethex2list.awk zcol=6 CpG_CTOT_hiseq_casava1.8.txt_bismark.txt
+
+writes the converted lines to stdout where they can be captured by
+commandline redirection.
+
+----------------------------------------------------------------------
+tidyrrnams.awk
+
+Script to correct chromosome names from mkgenomes.  In order to
+distinguish the names from the unmodified defaults (1,2..22,X,Y) they
+have rr appended to them, but this can complicate downstream
+processing, hence this script which can flexibly remove rr suffixes.
+This script replaces a number of earlier ones which had been tailored
+to specific output file formats but, by writing this version in a
+slightly more intelligent way, it manages variant formats, like .BED
+files and bsmap output.  
+
+E.g. rmapbs output run on RR genome gives:
+
+Xrr	529488	529538	HWI-EAS209_0006_FC706VJ:1:2:10354:4724#0/1	1	+
+15rr	241793	241843	HWI-EAS209_0006_FC706VJ:1:3:5446:13600#0/1	7	+
+16rr	2800644	2800694	HWI-EAS209_0006_FC706VJ:1:5:13647:7002#0/1	5	+
+[...]
+
+where we need to modify field 1, so the command
+
+awk -f <path>tidyrrnams.awk splitfield=1 <mybedfile>.bed > <modifiedfile>.bed
+
+will alter the chromsome ids to X,15,16... respectively for this
+example.  splitfield defaults to 1 so the parameter 'splitfield=1'
+could be omitted.
+
+bsmap generates output like:
+
+HWI-EAS209_0006_FC706VJ:1:1:6899:15689#0/1	GGTAATTTTTTTTATTGTTTTTTGTAGTAGGTGTTGAGT	UM	Xrr	613451	-+	0	1:0:0:0:0	mC
+HWI-EAS209_0006_FC706VJ:1:1:6900:16423#0/1	GGGTTTTTGTTTTATAAAGTGGGTAGTGGTAAAGTGTTG	UM	2rr	1760913	-+	0	1:0:0:0:0	mC
+HWI-EAS209_0006_FC706VJ:1:1:6900:4193#0/1	GGAATAGTTTTTGGTATATAGTAGGTATTTAATAATTGT	UM	5rr	2861341	++	1	0:1:0:1:0	mC
+
+once unique matches are selected, with the chromosome id in the fourth
+field.  So the command:
+
+awk -f <path>tidyrrnams.awk splitfield=4 <mybsmapoutfile> > <renamedbsmapfile>
+
+will work.
+
+Bismark output writes the chromosome name to the 3rd field of output
+report files, so 'splitfield=3' is appropriate there.
+
+----------------------------------------------------------------------
+getcpgpcmeth.awk
+
+script to process some of diffmeth output to give the percent
+methylation of individual CpGs.  The output is a tabbed list of
+chromosome, position and %methylation.  Where the %methylation cannot
+be calculated a '-' is written.  This script requires diffmeth >=
+V1.41.
+
+Use: with diffmeth as pipeline:
+
+diffmeth -e 40,220 \
+-g /Volumes/Data2/HomoSapiens_genome/hs_ref_GRCh37/Homo_sapiens.GRCh37.65.dna.chromosome. \
+-R ../X12/bismark_at3/X12_ad3tr85.fastq_bismark.sam \
+| awk -f getcpgpcmeth.awk
+
+See diffmeth notes for options.
+----------------------------------------------------------------------
+diffmeth:
+
+executable to generate MspI, or other, fragment-based bins for a
+genome and map counts from either a text file of <chromosome>
+<position> <+/-> lines, a SAM file or a BAM file generated by later
+versions of the Bismark mapper.  The original differential methylation
+algorithm proposed by Li, et al. (2010, PLOSBiology,11,e1000533) is
+not easily applicable to RRBS work and this program adopts a RRBS
+fragment-based approach in contrast to the sliding-window scheme of
+others.
+
+Probabilities are derived for the observed counts: the code allows
+investigation of pairwise Fisher's Exact or chi-square probabilities
+where appropriate.  Output can be constrained to one or the other and
+made to calculate chi-squares only for samples and fragments for which
+the usual chi-square restriction of all expected values >= 5.0 holds.
+In our use, the latter option is preferred, since pairwise Fisher's
+Exact comparisons typically return a range of probabilities from very
+low to unimpressive for a given fragment, but usually the shown value
+is the lowest, masking the extent of similar methylation across the
+individuals compared.  V1.43 onwards enables treatment vs control
+processing returning the analysis of variance (ANOVA) F ratio for
+treatment/residual variation and returns the probability of the F
+value using code modified from 'Numerical Recipes in C: the Art of
+Scientifc Computing' (ISBM 0-521-43108-5).  From v1.71 diffmeth can
+perform ANOVA on more than two treatment groups: see options -a, -A,
+-B and the -R and -S for further information.
+
+The output can be set to show only fragments meeting a specified Pr
+threshold, or for which calculations can be validly made for a
+specified minimum number of individuals.
+
+From v1.70 diffmeth will now process non-CpG methylation with the -J
+option.
+
+Command Options:  Note that this is a work in progress, not all of
+these have been implemented: some may never be. Also, the -z option
+for no X,Y chromosomes of versions 1.55 and prior has been replaced
+with -Y and -z/-Z is now used to control bam/sam file input.
+
+./diffmeth v1.72: make MspI (or other) fragment or fixed bins, note meth/unmeth positions for individuals
+Options:
+     -r <posfile> read <posfile> as set of chr posit strand/meth (multiples allowed)
+     -R <samfilebamfile> read info from .sam/.bam file (multiples allowed)
+     -s <posfile> as for -r, second group data
+     -S <samfile> as for -R, second group data
+     -z/-Z switch between sam (-Z) & bam (-z) for -R/-S input - positional (def=-Z)
+     -g <genomehead> dir and file string to locate genomic seq files by adding n.fa
+ or  -G <chr_info_file> file of chromosome IDs and filenames
+     -p <j,k> pairwise scan meth variance of RR frags j..k (Li, et al. (2010) PLOSBiology,11,e1000533)
+     -P <j,k> pairwise scan force Fisher's exact frags j..k (Li, et al. (2010) PLOSBiology,11,e1000533)
+     -x <j,k> as -s but do Chi Square if possible, else pairwise FE
+     -X <j,k> as -x but force Chi Square for valid count fragments
+     -q <j,k> as -a but choose lowest pr of Fisher's Exact, or Chi if valid
+     -Q <j,k> as -q but show all paired FE Prs, or Chi if valid
+     -a/-A/-B <j,k> ANOVA on %meth for groups; -A->show >meth group & sample counts; -B->more detail
+     -e/-E <j,k> list each CpG for bins; -E=> only nonzero bins
+     -D <j,k> derive mean & std deviation for valid bins
+     -l/-L <j,k> list bins (-L=>only nonzero bins)
+     -m treat complementary Cs of CpGs as separate (def=don't)
+     -f <fold> require fold methylation difference (def=don't)
+     -t <threshold> ignore bins with fewer than threshold counts (def=1)
+     -T <hitthreshold> ignore bins with less than hitthreshold/CpG counts (def=0.0)
+     -F <cntscrit> No. CpGs that must meet -t count criterion (def=all)
+     -u <maxhitspercpg> ignore bins with more counts/CpG (def=0.0=ignore)
+     -M <minmethprop> ignore bins with methylation below this (def=0.0=ignore)
+     -U <prthreshold> ignore comparisons with Pr > prthreshold (def=don't=>-U 1.0)
+     -k <maxchrno> allow upto maxchrno different chromosomes (def = ChrY, 24)
+     -Y don't expect XY chromosomes, just numbers (def=do)
+     -b <sambuflen> max read length for .sam files (def=150)
+     -d display counts for each individual (def=don't)
+     -c <n> restrict effort to Chromosome <n> (def = all chromosomes)
+     -C <n> restrict bins to those with <n> or more CpGs
+     -I <n> minimum of <n> individuals for a fragment (def=2)
+     -j join adjacent RRBS fragments (def=don't)
+     -K <clustersize> cluster bins to clustersize groups for quick lookup (def=1000)
+     -H <Chdr> use Chdr as prefix for each chromosome (def=none)
+     -N for 3' SAM reads map leading CpG to prev fragment (def=don't)
+     -W <binwidth> make fixed width bins (def=MspI by size)
+     -n <restrictionfile> - use sites in <restrictionfile>, def=MspI
+     -J include non-CpG methylation
+
+To explain some of these options:
+
+-g: As for other programs: the head for the genome sequence files to
+be completed by <n>.fa where <n> is the chromosome identifier/number.
+
+-G: A file specifying each chromosome and the file of its sequence.
+Use this option instead of -g if: (1) files are in different
+directories, (2) naming is not consistent for -g to work, (3) genome
+has chromosome IDs other than numbers, X & Y (e.g. avian or
+mitochondrial) or (4) you want a subset of chromosomes.  Format of the
+file is lines of <ChromosomeID> <Filename>
+(e.g. "Y /Genomes/hs_GRCh37/HomoSapiens_Chr_Y.fasta").
+Chromosomes in the output will appear in the same order as they are in
+the file. Filenames containing spaces should be enclosed in double
+quotes '"'.  Any characters on a line after a '#' (if unquoted) will
+be regarded as a comment.
+
+-r: the name of a file of methylated positions comprising <Chromosome>
+<position> <methylationstate>, e.g. "12 2457821 +".  Multiple files
+are expected with multiple -r options.
+
+-R: name of a SAM file of mapped reads from bismark.  Multiple -R
+options are expected and can be mixed with -r position files.  The
+advantage of using SAM files is to avoid the 1 bp offset generated by
+the bismark methylation_extractor for which the -m option was
+required.
+
+-s or -S: similar to -r/-R but distinguishes files belonging to a
+contrasting group for treatment/control comparisons.  This option is
+intended for the -a & -A statistical specifiers for ANOVA calculations
+or for pairwise Fisher's Exact (-P) where it will return the
+proportion of methylation for each sample..
+
+-r,-R,-s & -S for multiple sample groups: in order to specify samples
+belonging to more than two groups, these options have been augmented
+so that more groups can be managed.  The option letters can be
+followed by an integer (1,2,3...) to indicate to which group each
+sample file belongs.  The integers would normally be sequential, but
+need not necessarily be so.  The first group should be indicated by
+-R1, the second by -R2 and so forth.  If this method is being used,
+then -S1 and -R1 become equivalent - it would not be desirable to mix
+-Rn and -S since -S would always indicate the second group.  If only
+two groups are required, then -R and -S will work as they did
+previously.  See the -B option for further information about group
+methylation details.
+
+-z & -Z: bismark from v0.14.0 produces bam output files by default, so
+these options control whether the -R & -S input options expect sam or
+bam format alignments.  These options are positional and affect the
+inputs following them on the command line.  A mixture of sam and bam
+files can be processed by multiple occurrences of -z and -Z.  The
+default is sam file input (= -Z).  The use of these options is similar
+to that in cleanadaptors.
+
+-c: restrict to the single given chromosome: most useful for testing.
+
+-f, -t, -T, -u, -U, -C, -I: all impose various criteria for numbers
+and densities of hits before a fragment will be included in
+calculations.
+
+-p, -P, -a, -A, -B, -x, -X, -q, -Q: all control the statistical test
+employed.  j & k are a comma-separated pair of values which give the
+size limits of fragments, e.g. 40,220.  A value of 0 for either will
+negate that limit.  The -B option writes out more information about
+the sample methylation levels, using the group identifier followed by
+a letter to indicate the sample: e.g. R1a, R1b and R1c would be
+successive samples for group 1.
+
+-k and -Y: can allow organisms other than human to be processed
+(e.g. Danio rerio: -Y -k 25).  Note that the -G method of specifying
+chromosome information with a file is superior to -Y and -k and should
+be used in preference.
+
+-I: only calculate fragments for which this number of individuals have
+valid counts.  Defaults to 2.
+
+-F: a threshold number of CpGs in any fragment that must reach the
+-t-defined count limit for that fragment to be valid.
+
+-M: ignore fragments/bins with methylation below the given proportion
+(0.0-1.0).
+
+-j: join adjacent RRBS fragments.  Not always clear how this interacts
+with other criteria (-F, -T, etc.).
+
+-N: for SAM (-R) or BAM (-z -R) data count the leading CpG of 3'
+mapped reads to the previous fragment if possible, in order to ensure
+that these are attributed to the fragment on which they actually lie.
+
+-W: to generate fixed with bins rather than MspI fragments.
+
+Output is to standard out, and the statistical test and degrees of
+freedom are indicated.  For Fisher's Exact pairwise comparisons, the
+number given is the count of pairwise comparisons that could be
+performed for the fragment.
+
+-n: use a file of restriction sites instead of the default MspI site
+for cleavage.  The file should only contain a list of cleavage sites
+(case independent) one per line, with the cutting position indicated
+by a '^' character.  The following would be for a MspI and TaqI
+combined digest:
+
+C^CGG
+T^CGA
+
+-J: non-CpG methylation.  All C nucleotides are processed.  Other
+criteria for fragment or region inclusion should remain the same.
+
+Examples:
+
+1. Identifying differentially methylated regions (DMRs), pairwise: the
+following command applies Fisher's Exact statistic (-P 40,220) to a
+pair of sam files from the above.  The options given require that at
+least 2 CpGs in each fragment have 10 or more hits (-F 2 -t 10) and
+that the leading CpG of 3' mapped reads is assigned to the previous
+fragment (-N).  Only chromosome 21 is to be used (-c 21):
+
+diffmeth -g /HomoSapiens_genome/hs_ref_GRCh37/Homo_sapiens.GRCh37.65.dna.chromosome. \
+ -c 21 -P 40,220 -F 2 -t 10 -N -R ctrl_1.fastq_bismark.sam -R mds_1.fastq_bismark.sam
+
+The same run can be performed with bam files by including -z before
+the first input file:
+
+diffmeth -g /HomoSapiens_genome/hs_ref_GRCh37/Homo_sapiens.GRCh37.65.dna.chromosome. \
+ -c 21 -P 40,220 -F 2 -t 10 -N -z -R ctrl_1.fastq_bismark.bam -R mds_1.fastq_bismark.bam
+
+In order to indicate which group (r or R vs s or S) was more
+methylated, one of the input sam/CpG files may be identified with -S/-s
+options, adding a >Meth column to the output: e.g.
+
+diffmeth -g /HomoSapiens_genome/hs_ref_GRCh37/Homo_sapiens.GRCh37.65.dna.chromosome. \
+ -c 21 -P 40,220 -F 2 -t 10 -N -R ctrl_1.fastq_bismark.sam -S mds_1.fastq_bismark.sam
+
+2. Identifying DMRs - ChiSQ test: on a cohort of 6 individuals.  The
+following command runs diffmeth using the ChiSQ statistic (-X 40,220)
+requiring that at least 2 CpGs in each fragment have 10 or more hits
+(-F 2 -t 10), that at least 4 individuals contribute to the statistic
+(-I 4) and that the leading CpG of 3' mapped reads is assigned to the
+previous fragment (-N).  Only chromosome 21 is to be used (-c 21).
+The comparison including control and MDS individuals is intended to
+illustrate the use of this statistic with the test data set, not to
+imply that there is no difference between the groups:
+
+diffmeth -g /HomoSapiens_genome/hs_ref_GRCh37/Homo_sapiens.GRCh37.65.dna.chromosome. \
+ -c 21 -X 40,220 -F 2 -t 10 -N -I 4 -R ctrl_1.fastq_bismark.sam \
+ -R ctrl_2.fastq_bismark.sam -R ctrl_3.fastq_bismark.sam \
+ -R mds_1.fastq_bismark.sam -R mds_2.fastq_bismark.sam \
+ -R mds_3.fastq_bismark.sam
+
+3. Comparing methylation between two groups: this applies the ANOVA F
+ratio test (-a 40,220), requiring that at least 4 individuals show
+counts for a fragment to be included (-I 4) and the leading CpG of 3'
+mapped reads is assigned to the preceding fragment (-N).  Sam data for
+the treatment/disease group is identified with -S:
+
+diffmeth -g /HomoSapiens_genome/hs_ref_GRCh37/Homo_sapiens.GRCh37.65.dna.chromosome. \
+-c 21 -a 40,220 -N -I 4 -R ctrl_1.fastq_bismark.sam \
+-R ctrl_2.fastq_bismark.sam -R ctrl_3.fastq_bismark.sam \
+-S mds_1.fastq_bismark.sam -S mds_2.fastq_bismark.sam \
+-S mds_3.fastq_bismark.sam
+
+4. As for 3, but indicate the more methylated group (-A 40,220) and
+restrict the output to Pr < 0.01 (-U 0.01).  Each line is suffixed
+with a 'R' or 'S' character to indicate which group had higher
+methylation and a summary of the valid sample counts for R & S groups.
+
+diffmeth -g /HomoSapiens_genome/hs_ref_GRCh37/Homo_sapiens.GRCh37.65.dna.chromosome. \
+-c 21 -A 40,220 -U 0.01 -N -I 4 -R ctrl_1.fastq_bismark.sam \
+-R ctrl_2.fastq_bismark.sam -R ctrl_3.fastq_bismark.sam \
+-S mds_1.fastq_bismark.sam -S mds_2.fastq_bismark.sam \
+-S mds_3.fastq_bismark.sam
+
+5. Compare two individuals with Fisher's Exact Test, using the -R and
+-S group formality to make diffmeth generate columns showing the
+methylation proportion for each which is the more methylated and
+the fold difference in methylation:
+
+diffmeth -g /HomoSapiens_genome/hs_ref_GRCh37/Homo_sapiens.GRCh37.65.dna.chromosome. \
+     -P 40,220 -N -F 2 -t 10 -R Ind_1.fastq_bismark.sam  -S Ind_2.fastq_bismark.sam
+
+
+6. For WGBS analysis: for tiled fixed window analysis. The option -W
+<windowlength> is added to the command.  E.g. as for 4, but
+with fixed width windows of 1000 bp rather than fragments (-W 1000).
+
+diffmeth -g /HomoSapiens_genome/hs_ref_GRCh37/Homo_sapiens.GRCh37.65.dna.chromosome. \
+-c 21 -A 40,220 -W 1000 -U 0.01 -N -I 4 -R ctrl_1.fastq_bismark.sam \
+-R ctrl_2.fastq_bismark.sam -R ctrl_3.fastq_bismark.sam \
+-S mds_1.fastq_bismark.sam -S mds_2.fastq_bismark.sam \
+-S mds_3.fastq_bismark.sam
+
+7. Same as 5 above, but use a chromosome information file (-G) rather
+than -g to run with the autosomal chromosomes.  An example file
+hs_GRCh37_autosomal.txt is provided in the src distribution directory:
+
+diffmeth -G hs_GRCh37_autosomal.txt -P 40,220 -N -F 2 -t 10 \
+    -R Ind_1.fastq_bismark.sam  -S Ind_2.fastq_bismark.sam
+
+or if the -R data is a bam file and the -S sam:
+
+diffmeth -G hs_GRCh37_autosomal.txt -P 40,220 -N -F 2 -t 10 \
+  -z -R Ind_1.fastq_bismark.bam -Z -S Ind_2.fastq_bismark.sam
+
+8. Generate a list of CpG counts for a combined Taq1 & Msp1 digest,
+showing CpGs with > 0 counts.  Do this for H. sapiens chromosome 1
+only.  rstsites.txt contains the sites as indicated above (-n), and
+the mapping is for a sam file:
+
+diffmeth -G c1_chrinfo.txt -n rstsites.txt -L 40,220 \
+  -R Ind_2.fastq_bismark.sam
+
+9. List all Cs with non-zero hits for a bam file, only process
+chromosome 1:
+
+diffmeth -G c1_chrinfo.txt -J -E 40,220 -z -R x12_c1_bismark.bam
+
+10. Perform a 3 group one way analysis of variance on 9 samples,
+chromosome 1 only, writing out methylation level for each sample:
+
+diffmeth -G c1_chrinfo.txt -B 40,220 -N -R1 s1.sam -R1 s2.sam \
+  -R1 s3.sam -R2 s4.sam -R2 s5.sam -R2 s6.sam -R3 s7.sam -R3 s8.sam \
+  -R3 s9.sam
+
+----------------------------------------------------------------------
+identgeneloc:
+
+Uses feature table information and the output from diffmeth to show
+the nearest gene for each fragment.  Feature tables can be read in
+EMBL, GenBank, GFF3, GTF and SeqMonk format.  Not all of these have
+been thoroughly checked at this stage.  The program looks for Gene,
+mRNA and CDS information and attempts to relate these for each
+gene. The start and end positions of fragments are then compared with
+each Gene in the sense of the gene and the closest gene returned.
+Limits can be imposed on how far valid genes can lie from the
+fragment.  If TSS and CpG island information is included in the
+feature tables then the program will look upstream of the gene for the
+nearest such feature.  It is possible, also to find genes for which
+the fragment is internal and, in future, this option will extend to
+returning information on whether the fragment is located on exons,
+introns or intron/exon boundaries
+
+The main returned value is the distance from the end of the fragment
+nearest the gene start.
+
+Options:
+
+./identgeneloc v0.13: proximal genes for chromosomal position table for a feature table
+Usage: -e|g|E|F|T|Q {-f <ftfile> | -p <ftprefix> [-s <ftsuffix>] | -G <infofile> -r <chr_pos_file>
+where: -e: EMBL feature format (New)
+       -g: Genbank feature format
+       -F: GFF3 feature format
+       -T: GTF feature format
+       -Q: SeqMonk feature format (for CpGIs & TSS)
+       -q: take gene name from protein_id qualifier for CDS (esp. for Genbank, etc. def=gene)
+       -f <ftfile> read feature table from <ftfile>
+       -p <ftprefix> generate feature files from <ftprefix>+chrno+<ftsuffix>
+       -s <ftsuffix> use <ftsuffix> for generated names (def=empty string)
+       -G <infofile> read chromosome ID & feature file info from <infofile>
+       -r positions from chr_pos_file as Chr<ht>start<ht>stop...: file - => stdin
+       -k <maxchrno>: allow <maxchrno> different chromosomes (including X,Y: def=human)
+       -z: don't use X,Y chromosome names for two highest
+       -c <userchrno>: confine activity to chromosome <userchrno>
+       -l list feature data, don't process chromosome positions (def=do)
+       -L list chromosome ids only to stdout (def=find proximal genes)
+       -C <srccollmt> include <srccollmt> columns of chr/pos file (def=9,min=3)
+       -P require corresponding Protein CDS for any gene (def=don't)
+       -B <type> restrict to /biotype="<type>" gene/mRNA features (SeqMonk features), multiples OK, (def=don't)
+       -m use mRNA to define gene/position (def=use 'gene')
+       -I allow fragments internal to genes (def=don't)
+       -i as for -I, but identify fragment relationships with exon boundaries
+       -K show fragment vs feature info (def=don't)
+       -t show closest upstream TSS (SeqMonk feature list) (def=don't)
+       -U show closest upstream CpG Is (SeqMonk feature list) (def=don't)
+       -u show closest CpG Is (SeqMonk feature list) in any direction (def=don't)
+       -d <limit> don't look beyond <limit> for features (def=nolimit)
+       -D <tsslimit> don't look for TSS beyond this distance(def=nolimit)
+       -R show ranges for TSS & CpGi positions
+       -X append Xref info after gene name (def=don't)
+       -n show nearest TSS/CpGI to fragment rather than gene
+       -N count qualifying genes in fragment range
+       -b <buflen> allow input lines up to <buflen> (def=2048)
+output to stdout
+
+Explanations:
+
+-e, -g, -F, -T, -Q: determine which feature table format is to be
+parsed.  At present, the code has been most extensively tested with
+the SeqMonk data files distributed with downloaded genomes for
+SeqMonk.
+
+-p & -s: are used to specify the feature table files to be located by
+<prefix><n><suffix> where <n> is the chromosome number/identifier.
+The -G method of specifying feature files is to be preferred over this
+older strategy.
+
+-G: A file specifying each chromosome and its feature table file.
+Use this option instead of -p & -s if: (1) files are in different
+directories, (2) naming is not consistent for -p & -s to work, (3)
+genome has chromosome IDs other than numbers, X & Y (e.g. avian or
+mitochondrial) or (4) you want a subset of chromosomes.  Format of the
+file is lines of <ChromosomeID> <Filename> (e.g. Y
+"/Volumes/Data2/SeqMonk_Genomes/Homo sapiens/GRCh37/Y.dat")
+Chromosomes in the output will appear in the same order as they are in
+the file. Filenames containing spaces should be enclosed in double
+quotes '"'.  Any characters on a line after a '#' (if unquoted) will
+be regarded as a comment.
+
+-k & -z: for genomes which have different chromosome numbers or lack X
+& Y chromosomes (e.g. Danio rerio: -z -k 25).  The -G option makes
+this obsolete.
+
+-U,-u, -T: cause CpG and TSS positions and distances (from gene) to be
+included in processing.
+
+-I: allow fragments to be found within the genes.
+
+-i: further to -I, identify the fragment position wrt intron/exons if
+feature information includes these and the fragment is internal to the
+relevant feature.
+
+-b: permit longer input lines: if things are being truncated.
+
+-C: Expects between 3 and 9 tab-delimited items for each input line:
+the number must be the same for all input lines.  Use this option if
+you have more than 9 items.  Identgeneloc information will be appended
+after the information from input lines.
+
+-K: makes the output indicate where the fragment lies in relation to
+the gene: this is the usual option in our use.
+
+-B: for feature tables which include a /biotype qualifier
+(e.g. SeqMonk) only consider features which match biotypes on the
+given comma-separated list.  This helps restrict matches to genes
+rather than putative transcripts.  Multiple -B options are accepted
+and are equivalent to a comma-separated list.
+
+-q: for GenBank .gbff files, take the gene name from the CDS
+/protein_id field rather than the default gene /gene field.  This can
+return pfam identifiers for cases where the genome annotation is less
+complete.
+
+-m: Use mRNA features to define genes and positions.  The default is
+to use 'gene' features, so that this will tend to define the
+transcription start site from the corresponding mRNA.  Any -B
+constraints on biotype will apply to the mRNA features.
+
+-R: express TSS & CpG island positions as their ranges 5'-3'.
+
+-n: distance to TSS or CpG islands are from the fragment rather than
+the corresponding gene.
+
+Examples:
+
+identgeneloc -Q \
+-p /Volumes/Data2/SeqMonk_Genomes/Homo\ sapiens/GRCh37/ -s '.dat' \
+-r 7smpl_lopr_diffmeth.txt -d 2000 -t -U -I -K > 7smpl_lopr_geneloc_internal_k.txt
+
+uses the SeqMonk feature table information to find genes which are
+with 2000bp of each fragment from 7smpl_lopr_diffmeth.txt.  TSS and
+CpGi information is to be show and fragments are permitted within
+genes.
+
+identgeneloc -Q -G hs_GRCh37_chrinfo.txt \
+-r 7smpl_lopr_diffmeth.txt -m -B gene -i -K > 7smpl_lopr_geneloc_internal_k.txt
+
+uses SeqMonk feature table information to find nearest mRNA features
+(-m), no distance constraint is applied.  Only mRNAs which contain
+/biotype="gene" will be used and an extra column will specify the
+relationship between the fragments and intron/exon positions (-i) for
+fragments internal to the mRNAs.  The feature table information is
+provided by the file hs_GRCh37_chrinfo.txt which contains lines like:
+
+1 "/Volumes/Data2/SeqMonk_Genomes/Homo sapiens/GRCh37/1.dat"
+2 "/Volumes/Data2/SeqMonk_Genomes/Homo sapiens/GRCh37/2.dat"
+
+----------------------------------------------------------------------

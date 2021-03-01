@@ -1,0 +1,20 @@
+diffmeth v0.0: first hack, ex bin_cnts: Nov-2011
+diffmeth v1.00: faster lookup, modified meth proportions: Dec-2011
+diffmeth v1.10: various incremental changes to output, +&-cnts/CpG: Mar-2012
+diffmeth v1.20: allow individual CpG mapping: Apr-2012
+diffmeth v1.21: -U option & per-CpG counts: May-2012
+diffmeth v1.22: correct FE pairwise test failing to write CpG counts: Jul-2012
+diffmeth v1.23: implement hypomethylation criterion: Aug-2012
+diffmeth v1.30: join adjacent RRBS fragments, implement bin listing: Sep-2012
+diffmeth v1.31: read .sam files for input: Sep-2012
+diffmeth v1.32: manage 3' reads, leading CpG position: Oct-2012
+diffmeth v1.33: Allow fixed-width bins (Bock, et al, 2012 Molecular Cell, 47): Oct-2012
+diffmeth v1.34: allow modified coverge criteria, density/2 leading CpGs: Nov-2012
+diffmeth v1.35: correct per CpG count 3'SAM problem: Jan-2013
+diffmeth v1.36: correct error with binp in dm_notemethstatinbin: Feb-2013
+diffmeth v1.37: correct dm_cntsarevalid threshold comparison: Feb-2013
+diffmeth v1.38: -N CpG count increment for chi, etc.: Feb-2013
+diffmeth v1.39: -N CpG correction for non-adjacent fragments: Mar-2013
+diffmeth v1.40: correct Fisher's Exact criterion recursive test error: June 2013
+diffmeth v1.41: allow cpg count listing on one sample: Jul-2013
+diffmeth v1.42: correct -f logic (removed by mistake): Oct-2013

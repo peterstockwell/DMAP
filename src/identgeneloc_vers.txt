@@ -1,0 +1,7 @@
+identgeneloc v0.00: first hack
+identgeneloc v0.01: require associated CDS option (-P): 4-Apr-2012
+identgeneloc v0.02: allow for CpGI & TSS tags (seqmonk), note features starting in RR frags: May-2012
+identgeneloc v0.03: allow fragments internal to genes, classify wrt exon boundaries: Jun-2012
+identgeneloc v0.04: Frag-based CpGI & TSS distances: Nov-2012
+identgeneloc v0.05: relate frag/gene & CpGI positions: Mar-2013
+identgeneloc v0.06: correct CpGI classification error: Sep-2013
