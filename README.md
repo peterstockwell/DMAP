@@ -98,11 +98,13 @@ download the DMAP directory:
 In either case the set can be built with the following commands:
 
 cd DMAP-main/src
+
 make
 
 or
 
 cd DMAP/src
+
 make
 
 Some warnings may appear but these can be ignored.  The executables
