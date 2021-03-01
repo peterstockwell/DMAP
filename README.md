@@ -3,7 +3,7 @@
 	  Programs and Scripts for Bisulphite Sequence Data
 
 Peter A. Stockwell
-Dept of Biochemistry,
+Dept of Pathology,
 University of Otago,
 Dunedin, New Zealand.
 
@@ -81,9 +81,9 @@ input is limited to sam files or CpG position lists.
 Distribution: source code is distributed as a compressed tar archive
 which can be unpacked by:
 
-gzip -dc meth_progs_dist.tar.gz | tar -xvf -
+unzip DMAP-main.zip
 
-generating a directory meth_progs_dist containing three directories:
+generating a directory DMAP-main containing three directories:
 
 include - containing some of the generic header files
 data - containing contam.fa - the complete cleanadaptors data set
@@ -91,7 +91,7 @@ src - containing the rest of the source code and Makefile.
 
 The set can be built with the following commands:
 
-cd meth_progs_dist/src
+cd DMAP-main/src
 make
 
 Some warnings may appear but these can be ignored.  The executables
