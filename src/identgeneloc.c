@@ -71,8 +71,10 @@ ChrNo. start stop... */
 /* fix .gtf logic: Jun-2020 */
 /* #define PROG_VERS 0.21 */
 /* increase GTF token limit: Jul-2020 */
-#define PROG_VERS 0.22
+/* #define PROG_VERS 0.22 */
 /* allow multiple GTF attribute outputs: Aug-2020 */
+#define PROG_VERS 0.23
+/* allow multiple user feature types: Mar-2021 */
 
 #define DEF_SRCBUFLEN 2048
 
@@ -126,6 +128,8 @@ typedef struct IGL_runpars  /* runtime parameters/data */
   int uchrno;               /* user-defined chromosome No, 0=>implies all */
   DBP_MULTI_ELEMNT *meplist;   /* list of chromosomal feature information */
   DB_FTYPELT *ftlist;       /* list of features wanted */
+  DB_FTYPELT *tsslist;      /* tss feature special list */
+  DB_FTYPELT *cpgilist;     /* CpGIs feature special list */
   WRD_LUSTRCT *ftkw;        /* useful keywords sfor db format */
   int maxchrno;             /* max different chr, including X,Y */
   int havexy;               /* note if X,Y or not */
@@ -154,7 +158,8 @@ typedef struct IGL_runpars  /* runtime parameters/data */
   IGL_OUTMODE omode;        /* out style: normal/fragbased */
   int cds_prot_id;          /* 1 if gene identifier is from CDS/protein_id field */
   DB_STR_ELT *gtfattr;      /* if non-null, these are the wanted gtf/gff attributes */
-  DBLU_FTKW ufeattype;      /* user-specified feature type (-a value) */
+  DBLU_FTKW ufeattype;      /* if we need a user-specified feature */
+  DB_STR_ELT *ufeatlist;    /* list of values for ftlist */
   int printnullhits;        /* print lines for non-hitters (-W) */
   }
 IGL_RUNPARS;
@@ -229,7 +234,7 @@ fputs("       -C <srccollmt> include <srccollmt> columns of chr/pos file (def=9,
 fputs("       -P require corresponding Protein CDS for any gene (def=don't)\n",fl);
 fputs("       -B <type> restrict to /biotype=\"<type>\" gene/mRNA features (SeqMonk features), multiples OK, (def=don't)\n",fl);
 fputs("       -A <attribute> choose these attributes for gtf/gff2 files, multiples OK\n",fl);
-fputs("       -a <FeatureType> specify the feature type needed to override internal defaults\n",fl);
+fputs("       -a <FeatureType> specify the feature type: override defaults, multiples OK\n",fl);
 fputs("       -m use mRNA to define gene/position (def=use 'gene')\n",fl);
 fputs("       -I allow fragments internal to genes (def=don't)\n",fl);
 fputs("       -i as for -I, but identify fragment relationships with exon boundaries\n",fl);
@@ -448,7 +453,7 @@ else
 
 DB_FEATSTRCT *igl_locatnearestfeat(IGL_RUNPARS *rpp,
                                    DB_ENTSTRCT *entsp,
-                                   DBLU_FTKW feattype,
+                                   DB_FTYPELT *wantftlist,
                                    int rstart,
                                    int rstop)
 /* look thru features locating nearest feature of feattype
@@ -471,7 +476,7 @@ if ((proxdist = entsp->sqlen) <= 0)
 proxfp = NULL;
 while (fp != NULL)
   {
-  if ((feattype == FTKW_unknown) || (fp->featur == feattype))
+  if ((wantftlist == NULL) || (db_ptr4felt(wantftlist,fp->featur) != NULL))
     {
     if ((rpp->pcodingtypes == NULL) ||
          (((ilstp = db_tblent4udata(fp->infolist,FTQU_biotype,NULL)) != NULL) &&
@@ -538,7 +543,7 @@ else
 
 int igl_featcntinrng(IGL_RUNPARS *rpp,
                      DB_ENTSTRCT *entsp,
-                     DBLU_FTKW feattype,
+                     DB_FTYPELT *feattype,
                      int rstart,
                      int rstop)
 /* look thru features to count the number of feattype
@@ -558,7 +563,7 @@ fp = entsp->featlst;
 gcnt = 0;
 while (fp != NULL)
   {
-  if ((feattype == FTKW_unknown) || (fp->featur == feattype))
+  if ((feattype == NULL) || (db_ptr4felt(feattype,fp->featur) != NULL))
     {
     if ((rpp->pcodingtypes == NULL) ||
          (((ilstp = db_tblent4udata(fp->infolist,FTQU_biotype,NULL)) != NULL) &&
@@ -575,7 +580,6 @@ while (fp != NULL)
   }
 return(gcnt);
 }
-
 int igl_absdist2feat(DB_FEATSTRCT *fp,
                      int spos)
 /* return the absolute distance of spos
@@ -586,7 +590,7 @@ return(abs(db_lmt4feat(fp,imin)-spos));
 
 DB_FEATSTRCT *igl_locatproximalfeat(IGL_RUNPARS *rpp,
                                     DB_ENTSTRCT *entsp,
-                                    DBLU_FTKW feattype,
+                                    DB_FTYPELT *wantftlist,
                                     int rstart)
 /* look thru features locating nearest feature of feattype
 3' to rstart..rstop, 
@@ -605,7 +609,7 @@ if ((proxdist = entsp->sqlen) <= 0)
 proxfp = NULL;
 while (fp != NULL)
   {
-  if ((feattype == FTKW_unknown) || (fp->featur == feattype))
+  if ((wantftlist == NULL) || (db_ptr4felt(wantftlist,fp->featur) != NULL))
     {
     if ((rpp->pcodingtypes == NULL) ||
          (((ilstp = db_tblent4udata(fp->infolist,FTQU_biotype,NULL)) != NULL) &&
@@ -919,7 +923,7 @@ int tpt;
 DB_FEATSTRCT *upstrmftp;
 int usd;
 DBP_RELPOSTYPE rptype;
-DBLU_FTKW feattype;
+DB_FTYPELT *feattype;
 DB_FEATSTRCT *proxcpgip;
 char *gnamptr;
 int infocnt;
@@ -927,16 +931,17 @@ int infocnt;
 lbuf = (char *) getmemory(rpp->srcbuflen+1,"srclinebuf");
 tokns = (char **) getmemory(rpp->srccollmt*sizeof(char *),"tokenlist");
 /* igl_headoutput(dst,rpp); */
+feattype = NULL;
 if (rpp->ufeattype == FTKW_unknown)
   if (rpp->geneexmrna)
-    feattype = FTKW_mRNA;
+    (void) db_appnfelt(&feattype,FTKW_mRNA);
   else
     if (rpp->cds_prot_id)
-      feattype = FTKW_CDS;
+      (void) db_appnfelt(&feattype,FTKW_CDS);
     else
-      feattype = FTKW_FT_gene;
+      (void) db_appnfelt(&feattype,FTKW_FT_gene);
 else
-  feattype = rpp->ufeattype;
+  (void) db_appnfelt(&feattype,rpp->ufeattype);
 while (fgets(lbuf,rpp->srcbuflen,src) != NULL)
   {
   igl_cleansrcline(lbuf);
@@ -969,11 +974,11 @@ while (fgets(lbuf,rpp->srcbuflen,src) != NULL)
           case IGL_omod_fragbased:
             proxftp = proxcpgip = NULL;
             if (rpp->seektss)
-              proxftp = igl_locatnearestfeat(rpp,elpt->me_entstrptr,FTKW_TSS,istrt,istop);
+              proxftp = igl_locatnearestfeat(rpp,elpt->me_entstrptr,rpp->tsslist,istrt,istop);
             if ((((rpp->seekCpGis == IGL_CpG_upstream)) &&
-                 ((proxcpgip = igl_locatnearestfeat(rpp,elpt->me_entstrptr,FTKW_CpG_is,
+                 ((proxcpgip = igl_locatnearestfeat(rpp,elpt->me_entstrptr,rpp->cpgilist,
                                                       istrt,istop)) != NULL) ||
-                 ((proxcpgip = igl_locatproximalfeat(rpp,elpt->me_entstrptr,FTKW_CpG_is,
+                 ((proxcpgip = igl_locatproximalfeat(rpp,elpt->me_entstrptr,rpp->cpgilist,
                                                       istrt)) != NULL)) &&
                  (proxftp != NULL))
               {
@@ -1110,7 +1115,7 @@ while (fgets(lbuf,rpp->srcbuflen,src) != NULL)
                    ((upstrmftp = igl_firstupstreamfeat(proxftp,elpt->me_entstrptr->featlst,FTKW_CpG_is,
                                                          igl_sens5pupstreamdist)) != NULL)) ||
                    ((rpp->seekCpGis == IGL_CpG_proximal) &&
-                   ((upstrmftp = igl_locatproximalfeat(rpp,elpt->me_entstrptr,FTKW_CpG_is,
+                   ((upstrmftp = igl_locatproximalfeat(rpp,elpt->me_entstrptr,rpp->cpgilist,
                                                          istrt)) != NULL)))
                 {
                 fprintf(dst,"%s%d",rpp->outtokdelmtr,db_5pextnt4feat(upstrmftp));
@@ -1205,6 +1210,7 @@ while (fgets(lbuf,rpp->srcbuflen,src) != NULL)
       fputc('\n',dst);
     }
   }
+db_killfeltlst(&feattype);
 memfree(lbuf);
 }
 
@@ -1436,6 +1442,8 @@ IGL_RUNPARS *rpp;
 DB_FTYPELT *fep;
 WRD_LUSTRCT *tmpkwlu;
 DBLU_FTKW kwp;
+DB_STR_ELT *sfp;
+DBLU_FTKW feattype;
 
 bas_initmalfl("igl_mallc.txt");
 src = NULL;
@@ -1467,6 +1475,8 @@ rpp->chrinfofl = NULL;
 rpp->cds_prot_id = 0;
 rpp->gtfattr = NULL;
 rpp->ufeattype = FTKW_unknown;
+rpp->ufeatlist = NULL;
+rpp->tsslist = rpp->cpgilist = NULL;
 rpp->printnullhits = 0;
 for (ap = 1; ap < argc; ap++)
   if (*argv[ap] == '-') /* option */
@@ -1574,12 +1584,15 @@ for (ap = 1; ap < argc; ap++)
         break;
       case 't':      /* look for TSS */
         rpp->seektss = 1;
+        (void) db_appnfelt(&rpp->tsslist,FTKW_TSS);
         break;
       case 'U':      /* look for CpG Is closest upstream */
         rpp->seekCpGis = IGL_CpG_upstream;
+        (void) db_appnfelt(&rpp->tsslist,FTKW_TSS);
         break;
       case 'u':      /* CpG Is nearest to fragment */
         rpp->seekCpGis = IGL_CpG_proximal;
+        (void) db_appnfelt(&rpp->tsslist,FTKW_CpG_is);
         break;
       case 'd':     /* limit distance */
         if (++ap > argc)
@@ -1616,19 +1629,9 @@ for (ap = 1; ap < argc; ap++)
         break;
       case 'a':      /* user-specified feature type to override defaults */
         if (++ap > argc)
-          err_msg_die("-%c needs feature type string value\n",uopt);
+          err_msg_die("-%c needs feature type string value(s)\n",uopt);
         else
-          {
-/*          tmpkwlu = (WRD_LUSTRCT *) getmemory(sizeof(WRD_LUSTRCT),"FeatKW parse");
-          wlu_initlustrct(tmpkwlu,WLU_CASEIND,FTKW_unknown);
-          for (kwp = FTKW_ft_error; kwp <= FTKW_continuation; kwp++)
-            wlu_addwrd(tmpkwlu,db_ftkw2str(kwp),kwp,NULL);
-          rpp->ufeattype = wlu_chkwrd(tmpkwlu,argv[ap]);
-          wlu_clrlustrct(tmpkwlu); */
-          if ((rpp->ufeattype = wlu_chkwrd(rpp->ftkw,argv[ap])) == FTKW_unknown)
-            err_msg_die("feature type '%s' not appropriate for %s format\n",argv[ap],
-                          db_dbfmt2str(rpp->dfmt));
-          }
+          (void) igl_chkcommadelstrs(&rpp->ufeatlist,argv[ap]);
         break;
       case 'n':       /* fragment based CpGI/TSS distances */
         rpp->omode = IGL_omod_fragbased;
@@ -1664,7 +1667,20 @@ switch (rpp->dfmt)
   case DBFMT_gtf:
     if (rpp->gtfattr == NULL)
       (void) igl_chkcommadelstrs(&rpp->gtfattr,"transcript_name,transcript_id,gene_name");
-    (void) db_scnfeatwrds("exon,CDS,start_codon,stop_codon,transcript",rpp->ftkw,&rpp->ftlist,0);
+    if (rpp->ufeatlist == NULL)
+      (void) db_scnfeatwrds("exon,CDS,start_codon,stop_codon,transcript",rpp->ftkw,&rpp->ftlist,0);
+    else
+      {
+      sfp = rpp->ufeatlist;
+      while (sfp != NULL)
+        {
+        if ((feattype = wlu_chkwrd(rpp->ftkw,sfp->strval)) == FTKW_unknown)
+          err_msg_die("Error: %s not suitable for GTF feature type\n",sfp->strval);
+        else
+          db_appnfelt(&rpp->ftlist,feattype);
+        sfp = sfp->nxtselt;
+        }
+      }
     break;
   case DBFMT_embl:
   case DBFMT_genbank:
