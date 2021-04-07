@@ -744,7 +744,8 @@ switch (eiloc)
   }
 }
 
-IGL_FRAGGENE_LOC igl_classfyexintloc(DB_FEATSTRCT *fp,
+IGL_FRAGGENE_LOC igl_classfyexintloc(IGL_RUNPARS *rpp,
+                                     DB_FEATSTRCT *fp,
                                      int rgnstrt,
                                      int rgnstop)
 /* given rgnstrt & rgnstop define a sequence region wrt
@@ -754,7 +755,9 @@ corresponding mRNA or CDS following it in order.  Locate
 mRNA or CDS structure and scan the segment list thereof for
 the section relating to rgnstrt..rgnstop.  Return a classification
 of how rgnstrt..rgnstop relate.  This code has only been checked
-for effectiveness with GenBank/EMBL/SeqMonk-based feature lists. */
+for effectiveness with GenBank/EMBL/SeqMonk-based feature lists.
+Attempt to make it work for gtf gene features with exon positions
+in list */
 {
 DB_FEATSTRCT *mrnacdsp;
 DB_SEGELT *rstrtsegp;
@@ -763,56 +766,107 @@ int p5featextent;
 int p3featextent;
 
 if (rgnstop < rgnstrt)
-  return(igl_classfyexintloc(fp,rgnstop,rgnstrt));
+  return(igl_classfyexintloc(rpp,fp,rgnstop,rgnstrt));
 else
-  if (((mrnacdsp = dbp_featincludesfeat(fp,fp,FTKW_mRNA)) != NULL) ||
-        ((mrnacdsp = dbp_featincludesfeat(fp,fp,FTKW_CDS)) != NULL))
+  switch (rpp->dfmt)
     {
-    p5featextent = db_5pextnt4feat(fp);
-    p3featextent = db_3pextnt4feat(fp);
-    if (db_rnginclds(p5featextent,rgnstrt,p3featextent) &&
-          db_rnginclds(p5featextent,rgnstop,p3featextent))
-      {
-      rstrtsegp = db_featseg4pos(mrnacdsp,rgnstrt);
-      rstopsegp = db_featseg4pos(mrnacdsp,rgnstop);
-      if ((rstrtsegp != NULL) && (rstopsegp != NULL))
-        if (rstrtsegp == rstopsegp)
-          return(IGL_frgen_inexon);
-        else
-          return(IGL_frgen_includsintron);
-      else
-        if (rstrtsegp == NULL)
-          if (rstopsegp != NULL)
-            if (mrnacdsp->strctsens == DB_sens_comp)
-              return(IGL_frgen_onexonintron);
-            else
-              return(IGL_frgen_onintronexon);
-          else /* need to see if we have a segment between */
-            if (db_nxtfeatseg4pos(mrnacdsp,rgnstrt) ==
-                  db_nxtfeatseg4pos(mrnacdsp,rgnstop))
-              return(IGL_frgen_inintron);
-            else
-              return(IGL_frgen_includsexon);
-        else  /* rstopsegp is NULL, but not rstrtsegp */
-          if (mrnacdsp->strctsens == DB_sens_comp)
-            return(IGL_frgen_onintronexon);
+    case DBFMT_gtf:
+      p5featextent = db_5pextnt4feat(fp);
+      p3featextent = db_3pextnt4feat(fp);
+      if (db_rnginclds(p5featextent,rgnstrt,p3featextent) &&
+            db_rnginclds(p5featextent,rgnstop,p3featextent))
+        {
+        rstrtsegp = db_featseg4pos(fp,rgnstrt);
+        rstopsegp = db_featseg4pos(fp,rgnstop);
+        if ((rstrtsegp != NULL) && (rstopsegp != NULL))
+          if (rstrtsegp == rstopsegp)
+            return(IGL_frgen_inexon);
           else
-            return(IGL_frgen_onexonintron);
-      }
-    else
-      {
-      if (db_rnginclds(rgnstrt,p5featextent,rgnstop))
-        return(IGL_frgen_on5p);
-      if (db_rnginclds(rgnstrt,p3featextent,rgnstop))
-        return(IGL_frgen_on3p);
-      if (db_rnginclds(rgnstrt,p5featextent,rgnstop) &&
-            db_rnginclds(rgnstrt,p3featextent,rgnstop))
-        return(IGL_frgen_genein);
-      if ((db_rnginclds(rgnstrt,rgnstop,p5featextent) && (fp->strctsens != DB_sens_comp)) ||
-            (db_rnginclds(p3featextent,rgnstrt,rgnstop) && (fp->strctsens == DB_sens_comp)))
-        return(IGL_frgen_upstream);
-      return(IGL_frgen_unknown);
-      }
+            return(IGL_frgen_includsintron);
+        else
+          if (rstrtsegp == NULL)
+            if (rstopsegp != NULL)
+              if (fp->strctsens == DB_sens_comp)
+                return(IGL_frgen_onexonintron);
+              else
+                return(IGL_frgen_onintronexon);
+            else /* need to see if we have a segment between */
+              if (db_nxtfeatseg4pos(fp,rgnstrt) == db_nxtfeatseg4pos(fp,rgnstop))
+                return(IGL_frgen_inintron);
+              else
+                return(IGL_frgen_includsexon);
+          else  /* rstopsegp is NULL, but not rstrtsegp */
+            if (fp->strctsens == DB_sens_comp)
+              return(IGL_frgen_onintronexon);
+            else
+              return(IGL_frgen_onexonintron);
+        }
+      else
+        {
+        if (db_rnginclds(rgnstrt,p5featextent,rgnstop))
+          return(IGL_frgen_on5p);
+        if (db_rnginclds(rgnstrt,p3featextent,rgnstop))
+          return(IGL_frgen_on3p);
+        if (db_rnginclds(rgnstrt,p5featextent,rgnstop) &&
+              db_rnginclds(rgnstrt,p3featextent,rgnstop))
+          return(IGL_frgen_genein);
+        if ((db_rnginclds(rgnstrt,rgnstop,p5featextent) && (fp->strctsens != DB_sens_comp)) ||
+              (db_rnginclds(p3featextent,rgnstrt,rgnstop) && (fp->strctsens == DB_sens_comp)))
+          return(IGL_frgen_upstream);
+        return(IGL_frgen_unknown);
+        }
+      break;
+    default:
+      if (((mrnacdsp = dbp_featincludesfeat(fp,fp,FTKW_mRNA)) != NULL) ||
+            ((mrnacdsp = dbp_featincludesfeat(fp,fp,FTKW_CDS)) != NULL))
+        {
+        p5featextent = db_5pextnt4feat(fp);
+        p3featextent = db_3pextnt4feat(fp);
+        if (db_rnginclds(p5featextent,rgnstrt,p3featextent) &&
+              db_rnginclds(p5featextent,rgnstop,p3featextent))
+          {
+          rstrtsegp = db_featseg4pos(mrnacdsp,rgnstrt);
+          rstopsegp = db_featseg4pos(mrnacdsp,rgnstop);
+          if ((rstrtsegp != NULL) && (rstopsegp != NULL))
+            if (rstrtsegp == rstopsegp)
+              return(IGL_frgen_inexon);
+            else
+              return(IGL_frgen_includsintron);
+          else
+            if (rstrtsegp == NULL)
+              if (rstopsegp != NULL)
+                if (mrnacdsp->strctsens == DB_sens_comp)
+                  return(IGL_frgen_onexonintron);
+                else
+                  return(IGL_frgen_onintronexon);
+              else /* need to see if we have a segment between */
+                if (db_nxtfeatseg4pos(mrnacdsp,rgnstrt) ==
+                      db_nxtfeatseg4pos(mrnacdsp,rgnstop))
+                  return(IGL_frgen_inintron);
+                else
+                  return(IGL_frgen_includsexon);
+            else  /* rstopsegp is NULL, but not rstrtsegp */
+              if (mrnacdsp->strctsens == DB_sens_comp)
+                return(IGL_frgen_onintronexon);
+              else
+                return(IGL_frgen_onexonintron);
+          }
+        else
+          {
+          if (db_rnginclds(rgnstrt,p5featextent,rgnstop))
+            return(IGL_frgen_on5p);
+          if (db_rnginclds(rgnstrt,p3featextent,rgnstop))
+            return(IGL_frgen_on3p);
+          if (db_rnginclds(rgnstrt,p5featextent,rgnstop) &&
+                db_rnginclds(rgnstrt,p3featextent,rgnstop))
+            return(IGL_frgen_genein);
+          if ((db_rnginclds(rgnstrt,rgnstop,p5featextent) && (fp->strctsens != DB_sens_comp)) ||
+                (db_rnginclds(p3featextent,rgnstrt,rgnstop) && (fp->strctsens == DB_sens_comp)))
+            return(IGL_frgen_upstream);
+          return(IGL_frgen_unknown);
+          }
+        }
+      break;
     }
 return(IGL_frgen_unknown);
 }
@@ -927,21 +981,41 @@ DB_FTYPELT *feattype;
 DB_FEATSTRCT *proxcpgip;
 char *gnamptr;
 int infocnt;
+DB_STR_ELT *gtptr;
+DBLU_FTKW gtkw;
 
 lbuf = (char *) getmemory(rpp->srcbuflen+1,"srclinebuf");
 tokns = (char **) getmemory(rpp->srccollmt*sizeof(char *),"tokenlist");
 /* igl_headoutput(dst,rpp); */
 feattype = NULL;
-if (rpp->ufeattype == FTKW_unknown)
-  if (rpp->geneexmrna)
-    (void) db_appnfelt(&feattype,FTKW_mRNA);
-  else
-    if (rpp->cds_prot_id)
-      (void) db_appnfelt(&feattype,FTKW_CDS);
+if (rpp->dfmt != DBFMT_gtf)
+  {
+  if (rpp->ufeattype == FTKW_unknown)
+    if (rpp->geneexmrna)
+      (void) db_appnfelt(&feattype,FTKW_mRNA);
     else
-      (void) db_appnfelt(&feattype,FTKW_FT_gene);
+      if (rpp->cds_prot_id)
+        (void) db_appnfelt(&feattype,FTKW_CDS);
+      else
+        (void) db_appnfelt(&feattype,FTKW_FT_gene);
+  else
+    (void) db_appnfelt(&feattype,rpp->ufeattype);
+  }
 else
-  (void) db_appnfelt(&feattype,rpp->ufeattype);
+  {
+  if (rpp->gtfattr == NULL)
+    (void) db_appnfelt(&feattype,FTKW_FT_gene);
+  else
+    {
+    gtptr = rpp->gtfattr;
+    while (gtptr != NULL)
+      {
+      if ((gtkw = wlu_chkwrd(rpp->ftkw,gtptr->strval)) != FTKW_unknown)
+        (void) db_appnfelt(&feattype,gtkw);
+      gtptr = gtptr->nxtselt;
+      }
+    }
+  }
 while (fgets(lbuf,rpp->srcbuflen,src) != NULL)
   {
   igl_cleansrcline(lbuf);
@@ -1080,7 +1154,7 @@ while (fgets(lbuf,rpp->srcbuflen,src) != NULL)
                     if (rpp->intrnlfrag == IGL_intrnl_resolv)
                       fprintf(dst,"%s%s",rpp->outtokdelmtr,
                                 ((rptype==DBP_relpos_internal)?
-                                igl_exintloc2str(igl_classfyexintloc(proxftp,istrt,istop)):"-"));
+                                igl_exintloc2str(igl_classfyexintloc(rpp,proxftp,istrt,istop)):"-"));
                     else
                       fprintf(dst,"%s%s",rpp->outtokdelmtr,dbp_relpostype2str(rptype));
                     break;

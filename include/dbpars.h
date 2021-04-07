@@ -1,6 +1,10 @@
 /* dbpars.h: header datatypes and declarations for C db parsing routines */
 
-#define DBLUVERSION 5.36
+#define DBLUVERSION 5.37
+/* put seg_append_ok flag on DB_FEATSTRCT to permit incremental segment addition: Mar-2021 */
+/* #define DBLUVERSION 5.36 */
+/* add integer array ptr to DBP_MULTI_ELEMNT for faster lookups: Jan-2021 */
+/* #define DBLUVERSION 5.36 */
 /* add enamelist element to DB_FEATSTRCT type to handle multiple values: Aug-2020 */
 /* #define DBLUVERSIONNO 5.35 */
 /* increase GTFMAXTOKCNT for gencode gtf to 256: Jul-2020 */
@@ -493,6 +497,7 @@ typedef struct DB_featstrct  /* information about feature - incl. splicing */
   {
   DB_SEGELT *fstseg;          /* first segment */
   DB_SEGELT *lstseg;          /* last */
+  int seg_append_ok;          /* OK to append further segments to above */
   char *idp;                  /* ptr to ent ename */
   DB_STR_ELT *enamelist;      /* list of ename values if multiples required */
   DB_STR_ELT *enamlstend;     /* end of that list */
@@ -634,6 +639,8 @@ typedef struct DBP_multi_elemnt  /* data for a multi entry scan */
   char *me_id;   /* id for this element */
   DB_ENTSTRCT *me_entstrptr;   /* ptr to entry data structure */
   WRD_LUSTRCT *genids;               /* quick look up for gene names */
+  DB_FEATSTRCT **flistchunkarray;     /* array of positions for fast lookup */
+  int flistchunkcount;               /* length of above array */
   struct DBP_multi_elemnt *nxt_dme;  /* fwd ptr for list */
   struct DBP_multi_elemnt *prv_dme;  /* back ptr for list */
   }

@@ -1013,6 +1013,7 @@ switch (dfmt)
     wlu_addwrd(ws,"stop_codon",(int) FTKW_terminator_sq,NULL);
     wlu_addwrd(ws,"exon",(int) FTKW_exon,NULL);
     wlu_addwrd(ws,"intron_CNS",(int) FTKW_intron,NULL);
+    wlu_addwrd(ws,"intron",(int) FTKW_intron,NULL);
     wlu_addwrd(ws,"5UTR",(int) FTKW_UTR5p,NULL);
     wlu_addwrd(ws,"3UTR",(int) FTKW_UTR3p,NULL);
     wlu_addwrd(ws,"CNS",(int) FTKW_CNS,NULL);
@@ -1438,6 +1439,7 @@ void db_initfeatstrct(DB_FEATSTRCT *fs,
 /* set initial values for this feature structure */
 {
 fs->fstseg = fs->lstseg = NULL;
+fs->seg_append_ok = 0;
 fs->featur = FTKW_unknown;
 fs->savdno = fs->featno = 0;
 fs->strctsens = DB_sens_unk;
@@ -1493,6 +1495,38 @@ if (spt != NULL)
     endp->prevseg = prev;
     }
   }
+return(endp);
+}
+
+DB_SEGELT *db_prepndseg(DB_SEGELT **spt,
+                        int strt,
+                        int stop,
+                        DB_SENS sens,
+                        char *xidnm)
+/* malloc and prepend a new segment to list *spt.  return the address of the new
+element */
+{
+DB_SEGELT *prev, *endp;
+
+endp = (DB_SEGELT *) getmemory(sizeof(DB_SEGELT),"Segment element");
+endp->nextseg = NULL;
+endp->segid = NULL;
+endp->sgstart = strt;
+endp->sgstop = stop;
+endp->lthan = 0;
+endp->gthan = 0;
+endp->sgsens = sens;
+endp->segid = xidnm;  /* assumed to have been malloc()ed already */
+if (*spt == NULL)
+  endp->nextseg = endp->prevseg = NULL;
+else
+  {
+  prev = *spt;
+  prev->prevseg = endp;
+  endp->nextseg = prev;
+  endp->prevseg = NULL;
+  }
+*spt = endp;
 return(endp);
 }
 
@@ -6273,6 +6307,8 @@ if (melst != NULL)
   endp->nxt_dme = NULL;
   endp->me_id = bas_strdup(meid);
   endp->me_entstrptr = entptr;
+  endp->flistchunkarray = NULL;
+  endp->flistchunkcount = 0;
   if (*melst == NULL)
     {
     *melst = endp;
@@ -6739,6 +6775,7 @@ int slen;
 char *gennotecpy;
 DB_FEATSTRCT *firstidfeatp;
 DB_STR_ELT *strp;
+int p5val;
 
 /* check line for leading '#' */
 if (*ln != '#')
@@ -6814,6 +6851,28 @@ db_sayafeatcore(stdout,eltp->me_entstrptr,ftptr,0); */
         else
           ftptr->strctsens = DB_sens_comp;
         ftptr->idp = bas_strdup(thisid);
+        }
+      else /* does this new feature qualify an existing one? (e.g. exons in gene) */
+        {
+        if ((firstidfeatp != NULL) && (firstidfeatp->featur != FTKW_exon) &&
+             (thisfeat == FTKW_exon))
+          {
+          if (!firstidfeatp->seg_append_ok)
+            {
+            db_killsegs4featstrct(firstidfeatp);
+            firstidfeatp->seg_append_ok = 1;
+            }
+          p5val = (int) strtol(tokens[3],NULL,10);
+          if ((firstidfeatp->fstseg != NULL) &&
+                 (p5val < db_5pextnt4feat(firstidfeatp)))
+            (void) db_prepndseg(&firstidfeatp->fstseg,
+                                  p5val,(int) strtol(tokens[4],NULL,10),
+                                  firstidfeatp->strctsens,NULL);
+          else
+            firstidfeatp->lstseg = db_appnseg(&firstidfeatp->fstseg,
+                                                p5val,(int) strtol(tokens[4],NULL,10),
+                                                firstidfeatp->strctsens,NULL);
+          }
         }
       }
     }
