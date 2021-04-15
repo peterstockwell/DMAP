@@ -81,7 +81,7 @@ input is limited to sam files or CpG position lists.
 Distribution: source code is distributed as a compressed tar archive
 or as a git clone.  There are two options:
 
-1. Downloading DMAP-main.zip from github.com/peterstockwell/DMAP will
+1a. Downloading DMAP-main.zip from github.com/peterstockwell/DMAP will
 generate a local file which can be unpacked with:
 
 unzip DMAP-main.zip
@@ -91,6 +91,12 @@ generating a directory DMAP-main containing three directories:
 include - containing some of the generic header files
 data - containing contam.fa - the complete cleanadaptors data set
 src - containing the rest of the source code and Makefile.
+
+1b. Downloading at the command line using
+
+git clone https://github.com/peterstockwell/DMAP
+
+will produce a directory DMAP which is otherwise identical to 1a.
 
 2. Using 'git clone https://github.com/peterstockwell/DMAP' which will
 download the DMAP directory:
