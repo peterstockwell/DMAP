@@ -84,9 +84,9 @@ or as a git clone.  There are two options:
 1. Downloading DMAP-main.zip from github.com/peterstockwell/DMAP will
 generate a local file which can be unpacked with:
 
-unzip DMAP-main.zip
+unzip DMAP-master.zip
 
-generating a directory DMAP-main containing three directories:
+generating a directory DMAP-master containing three directories:
 
 include - containing some of the generic header files
 data - containing contam.fa - the complete cleanadaptors data set
@@ -97,7 +97,7 @@ download the DMAP directory:
 
 In either case the set can be built with the following commands:
 
-cd DMAP-main/src
+cd DMAP-master/src
 
 make
 
