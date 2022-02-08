@@ -1,6 +1,8 @@
 /* dbpars.h: header datatypes and declarations for C db parsing routines */
 
-#define DBLUVERSION 5.37
+#define DBLUVERSION 5.38
+/* corrections for Genbank 'LOCUS' lines, varied spacing; Feb-2022 */
+/* #define DBLUVERSION 5.37 */
 /* put seg_append_ok flag on DB_FEATSTRCT to permit incremental segment addition: Mar-2021 */
 /* #define DBLUVERSION 5.36 */
 /* add integer array ptr to DBP_MULTI_ELEMNT for faster lookups: Jan-2021 */
@@ -56,6 +58,7 @@
 #define DBLU_GNBSTRNDFLDSTRT 34
 #define DB_FEATINSET 6
 #define DB_FEATLOCATN 22
+#define DB_TOKEN_MAX 15 /* Max tokens to parse in lines */
 #define DB_GBSQINSET 11
 #define DB_MBLSQINSET 6
 #define DB_MAXKEYLN 32
@@ -64,11 +67,11 @@
 #define DB_SWFTPOS2COL 22
 #define DB_SWFTQUALCOL 35
 #define DB_FNODIGITS 2
-#define DBLU_NGNBNATPFLDSTRT 48
+/* #define DBLU_NGNBNATPFLDSTRT 48
 #define DBLU_NGNBDATFLDSTRT 69
 #define DBLU_NGNBTOPFLDSTRT 56
 #define DBLU_NGNBSTRNDFLDSTRT 45
-#define DBLU_NGNBLENFLDSTRT 30
+#define DBLU_NGNBLENFLDSTRT 30 */
 #define GFF3TOKENCNT 9
 #define GTFTOKENCNT 10
 #define GTFMAXTOKCNT 256     /* arbitrary - to manage lots of tabbed attribute values */

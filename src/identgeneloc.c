@@ -73,8 +73,10 @@ ChrNo. start stop... */
 /* increase GTF token limit: Jul-2020 */
 /* #define PROG_VERS 0.22 */
 /* allow multiple GTF attribute outputs: Aug-2020 */
-#define PROG_VERS 0.23
+/* #define PROG_VERS 0.23 */
 /* allow multiple user feature types: Mar-2021 */
+#define PROG_VERS 0.24
+/* allow Genbank gene_ids to be found + variant Genbank LOCUS lines: Feb-2022 */
 
 #define DEF_SRCBUFLEN 2048
 
@@ -988,33 +990,48 @@ lbuf = (char *) getmemory(rpp->srcbuflen+1,"srclinebuf");
 tokns = (char **) getmemory(rpp->srccollmt*sizeof(char *),"tokenlist");
 /* igl_headoutput(dst,rpp); */
 feattype = NULL;
-if (rpp->dfmt != DBFMT_gtf)
+switch (rpp->dfmt)
   {
-  if (rpp->ufeattype == FTKW_unknown)
-    if (rpp->geneexmrna)
-      (void) db_appnfelt(&feattype,FTKW_mRNA);
-    else
-      if (rpp->cds_prot_id)
-        (void) db_appnfelt(&feattype,FTKW_CDS);
-      else
-        (void) db_appnfelt(&feattype,FTKW_FT_gene);
-  else
-    (void) db_appnfelt(&feattype,rpp->ufeattype);
-  }
-else
-  {
-  if (rpp->gtfattr == NULL)
-    (void) db_appnfelt(&feattype,FTKW_FT_gene);
-  else
-    {
-    gtptr = rpp->gtfattr;
-    while (gtptr != NULL)
+  case DBFMT_gtf:
+    if (rpp->dfmt != DBFMT_gtf)
       {
-      if ((gtkw = wlu_chkwrd(rpp->ftkw,gtptr->strval)) != FTKW_unknown)
-        (void) db_appnfelt(&feattype,gtkw);
-      gtptr = gtptr->nxtselt;
+      if (rpp->ufeattype == FTKW_unknown)
+        if (rpp->geneexmrna)
+          (void) db_appnfelt(&feattype,FTKW_mRNA);
+        else
+          if (rpp->cds_prot_id)
+            (void) db_appnfelt(&feattype,FTKW_CDS);
+          else
+            (void) db_appnfelt(&feattype,FTKW_FT_gene);
+      else
+        (void) db_appnfelt(&feattype,rpp->ufeattype);
       }
-    }
+    break;
+  case DBFMT_genbank:
+  case DBFMT_embl:
+  case DBFMT_embl_old:
+    if (rpp->ufeattype == FTKW_unknown)
+      if (rpp->geneexmrna)
+        (void) db_appnfelt(&feattype,FTKW_mRNA);
+       else
+        (void) db_appnfelt(&feattype,FTKW_CDS);  /* gene name seems to be put on CDS lines */
+    else
+      (void) db_appnfelt(&feattype,rpp->ufeattype);
+    break;
+  default:
+    if (rpp->gtfattr == NULL)
+      (void) db_appnfelt(&feattype,FTKW_FT_gene);
+    else
+      {
+      gtptr = rpp->gtfattr;
+      while (gtptr != NULL)
+        {
+        if ((gtkw = wlu_chkwrd(rpp->ftkw,gtptr->strval)) != FTKW_unknown)
+          (void) db_appnfelt(&feattype,gtkw);
+        gtptr = gtptr->nxtselt;
+        }
+      }
+    break;
   }
 while (fgets(lbuf,rpp->srcbuflen,src) != NULL)
   {
@@ -1862,8 +1879,19 @@ if (igl_maknamsnparsftfls(rpp) > 0)
             }      
           break;
         default:
-          if (src == NULL)
-          err_msg_die("Still haven't written this bit for %s\n",db_dbfmt2str(rpp->dfmt));
+          curseq = rpp->meplist;
+          while (curseq != NULL)
+            {
+            fprintf(stdout,"%s: %d items from %d\n",curseq->me_id,curseq->me_entstrptr->nfeats,curseq->me_entstrptr->nseen);
+            fp = curseq->me_entstrptr->featlst;
+            while (fp != NULL)
+              {
+              fprintf(stdout,"  %d: %s\n",fp->savdno,db_ftkw2str(fp->featur));
+              tg_putgfffeatrecurs(stdout,fp,1);
+              fp = fp->nextst;
+              }
+            curseq = curseq->nxt_dme;
+            }      
           break;
         }
       break;

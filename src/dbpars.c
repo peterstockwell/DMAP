@@ -2208,14 +2208,17 @@ char *lincpy;
 char *lincpori;
 char **clp;
 int tcnt;
-char *tokns[15];
+char *tokns[DB_TOKEN_MAX];
 int svers;
 int topotok;
 char *chrname;
 char *cnameori;
-char *chrtokns[15];
+char *chrtokns[DB_TOKEN_MAX];
 int ctcnt;
 char *pcolon;
+char *strtok_cntxt;
+char *newgbtok;
+int i;
 
 switch (fmt)
   {
@@ -2229,7 +2232,7 @@ switch (fmt)
       if (**clp != '\0')
         {
         tcnt++;
-        if (++clp >= &tokns[15])
+        if (++clp >= &tokns[DB_TOKEN_MAX])
           break;
         }
       }
@@ -2273,7 +2276,7 @@ switch (fmt)
       if (**clp != '\0')
         {
         tcnt++;
-        if (++clp >= &tokns[15])
+        if (++clp >= &tokns[DB_TOKEN_MAX])
           break;
         }
       }
@@ -2295,7 +2298,7 @@ switch (fmt)
         for ( clp = chrtokns; (*clp = strsep(&chrname,":")) != NULL;)
           {
           ctcnt++;
-          if (++clp >= &chrtokns[15])
+          if (++clp >= &chrtokns[DB_TOKEN_MAX])
             break;
           }
         nm = bas_strdup(chrtokns[2]);
@@ -2322,43 +2325,29 @@ switch (fmt)
   case DBFMT_genbank:
   case DBFMT_unknown:
   default:
-    nm = db_strdupskip((slin + DBLU_GNBIDFLDSTRT - 1),DBLU_MAXIDLEN," \t");
-/* try for old loc line positions */
-    (void) bas_strcpyskip((slin + DBLU_GNBNATPFLDSTRT - 1),5,&token[0],
-                           DBLU_MAXSRCLEN," \t");
-    if ((nat = (DB_NATYPE) wlu_chkwrd(nawlu,&token[0])) > DBNA_unk)
+/* pull line apart by tokens */
+    lincpy = lincpori = bas_strdup(slin);
+    tcnt = 0;
+    for (newgbtok = strtok_r(lincpy," \t",&strtok_cntxt);
+         ((newgbtok != NULL) && (tcnt < DB_TOKEN_MAX));
+         newgbtok = strtok_r(NULL," \t",&strtok_cntxt))
+    tokns[tcnt++] = bas_strdup(newgbtok);
+    nm = bas_strdup(tokns[1]);
+    if ((nat = (DB_NATYPE) wlu_chkwrd(nawlu,tokns[4])) > DBNA_unk)
       {
-      if (sqln != NULL)
-        *sqln = atoi((slin + DBLU_GNBLENFLDSTRT - 1));
       if (dat != NULL)
-        *dat = db_strdupskip((slin + DBLU_GNBDATFLDSTRT - 1),11," \t");
-      (void) bas_strcpyskip((slin + DBLU_GNBTOPFLDSTRT - 1),10,&token[0],
-                              DBLU_MAXSRCLEN," \t");
+        *dat = bas_strdup(tokns[tcnt-1]);
       if (crc != NULL)
-        *crc = wlu_chkwrd(owlu,&token[0]) == (int) DB_circlr;
-      (void) bas_strcpyskip((slin + DBLU_GNBSTRNDFLDSTRT - 1),3,&token[0],
-                             DBLU_MAXSRCLEN," \t");
+        *crc = wlu_chkwrd(owlu,tokns[5]) == (int) DB_circlr;
       if (nas != NULL)
-        *nas = wlu_chkwrd(swlu,&token[0]);
-      }
-    else      /* new style loc line, with new positions */
-      {
-      (void) bas_strcpyskip((slin + DBLU_NGNBNATPFLDSTRT - 1),5,&token[0],
-                             DBLU_MAXSRCLEN," \t");
-      nat = (DB_NATYPE) wlu_chkwrd(nawlu,&token[0]);
-      if (dat != NULL)
-        *dat = db_strdupskip((slin + DBLU_NGNBDATFLDSTRT - 1),11," \t");
-      (void) bas_strcpyskip((slin + DBLU_NGNBTOPFLDSTRT - 1),10,&token[0],
-                              DBLU_MAXSRCLEN," \t");
-      if (crc != NULL)
-        *crc = wlu_chkwrd(owlu,&token[0]) == (int) DB_circlr;
-      (void) bas_strcpyskip((slin + DBLU_NGNBSTRNDFLDSTRT - 1),3,&token[0],
-                             DBLU_MAXSRCLEN," \t");
-      if (nas != NULL)
-        *nas = wlu_chkwrd(swlu,&token[0]);
+        *nas = wlu_chkwrd(swlu,tokns[3]);
       if (sqln != NULL)
-        *sqln = atoi((slin + DBLU_NGNBLENFLDSTRT - 1));
-      }
+        *sqln = atoi(tokns[2]);
+      }	      
+/* clean up malloc()ed memory */
+    for (i = 0; i < tcnt; i++)
+      memfree(tokns[i]);
+    memfree(lincpori);
     break;
   }
 if (enm != NULL)
