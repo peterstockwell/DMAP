@@ -71,11 +71,13 @@ fputs("     -r <posfile> read <posfile> as set of chr posit strand/meth (multipl
 #ifdef NO_ZLIB
 fputs("     -R <samfile> read info from .sam file (multiples allowed)\n",fl);
 #else
-fputs("     -R <samfilebamfile> read info from .sam/.bam file (multiples allowed)\n",fl);
+fputs("     -R <samorbamfile> read info from .sam/.bam file (multiples allowed)\n",fl);
 #endif
 fputs("     -s <posfile> as for -r, second group data\n",fl);
+#ifdef NO_ZLIB
 fputs("     -S <samfile> as for -R, second group data\n",fl);
-#ifndef NO_ZLIB
+#else
+fputs("     -S <samorbamfile> as for -R, second group data\n",fl);
 fputs("     -z/-Z switch between sam (-Z) & bam (-z) for -R/-S input - positional (def=-Z)\n",fl);
 #endif
 fputs("     -g <genomehead> dir and file string to locate genomic seq files by adding n.fa\n",fl);
@@ -86,9 +88,9 @@ fputs(
 fputs(
 "     -P <j,k> pairwise scan force Fisher's exact frags j..k (Li, et al. (2010) PLOSBiology,11,e1000533)\n"
 ,fl);
-fputs("     -x <j,k> as -s but do Chi Square if possible, else pairwise FE\n",fl);
+fputs("     -x <j,k> do Chi Square if possible, else pairwise FE\n",fl);
 fputs("     -X <j,k> as -x but force Chi Square for valid count fragments\n",fl);
-fputs("     -q <j,k> as -a but choose lowest pr of Fisher's Exact, or Chi if valid\n",fl);
+fputs("     -q <j,k> as -x but choose lower Pr of Fisher's Exact, or Chi if valid\n",fl);
 fputs("     -Q <j,k> as -q but show all paired FE Prs, or Chi if valid\n",fl);
 fputs("     -a/-A/-B <j,k> ANOVA on %meth for groups; -A->show >meth group & sample counts; -B->more detail\n",
   fl);
@@ -97,7 +99,7 @@ fputs("     -D <j,k> derive mean & std deviation for valid bins\n",fl);
 fputs("     -l/-L <j,k> list bins (-L=>only nonzero bins)\n",fl);
 fputs("     -m treat complementary Cs of CpGs as separate (def=don't)\n",fl);
 fputs("     -f <fold> require fold methylation difference (def=don't)\n",fl);
-fputs("     -t <threshold> ignore bins with fewer than threshold counts (def=1)\n",fl);
+fputs("     -t <threshold> ignore CpGs with fewer than threshold counts (def=1)\n",fl);
 fputs("     -T <hitthreshold> ignore bins with less than hitthreshold/CpG counts (def=0.0)\n",fl);
 fputs("     -F <cntscrit> No. CpGs that must meet -t count criterion (def=all)\n",fl);
 fputs("     -u <maxhitspercpg> ignore bins with more counts/CpG (def=0.0=ignore)\n",fl);
@@ -114,7 +116,11 @@ fputs("     -j join adjacent RRBS fragments (def=don't)\n",fl);
 fprintf(fl,"     -K <clustersize> cluster bins to clustersize groups for quick lookup (def=%d)\n",
           DM_LIST_FREQ_DEF);
 fputs("     -H <Chdr> use Chdr as prefix for each chromosome (def=none)\n",fl);
-fputs("     -N for 3' SAM reads map leading CpG to prev fragment (def=don't)\n",fl);
+#ifdef NO_ZLIB
+fputs("     -N for 3' SAM RRBS reads map leading CpG to prev fragment (def=don't)\n",fl);
+#else
+fputs("     -N for 3' SAM/BAM RRBS reads map leading CpG to prev fragment (def=don't)\n",fl);
+#endif
 fputs("     -W <binwidth> make fixed width bins (def=rest. enz by size)\n",fl);
 fputs("     -y <binfilename> read bin info from binfilename (chr start stop) (def=rest. enz)\n",fl);
 fputs("     -n <restrictionfile> - use sites in <restrictionfile>, def=MspI\n",fl);
@@ -2245,7 +2251,7 @@ if (dm_chkfemethcriteria(rpars,binp,cnt1p,cnt2p))
     {
     c1prop = dm_methpropnoftot(cnt1p);
     c2prop = dm_methpropnoftot(cnt2p);
-    if ((c1prop >= 0.0) && (c2prop >= 0.0) && (c1prop != c2prop))
+    if ((c1prop >= 0.0) && (c2prop >= 0.0))
       if (c1prop == c2prop)
         gtrgrp = "=";
       else
@@ -2257,17 +2263,30 @@ if (dm_chkfemethcriteria(rpars,binp,cnt1p,cnt2p))
     else
       gtrgrp = "-";
     fprintf(ofl,"%s%s",rpars->listdelmtr,gtrgrp);
-    fprintf(ofl,"%s%s=%.4f,%s=%.4f",rpars->listdelmtr,
+    if ((c1prop <= 0.0) || (c2prop <= 0.0))
+      {
+      if ((c1prop <= 0.0) && (c2prop > 0.0))
+        fprintf(ofl,"%s%s=-,%s=%.4f",rpars->listdelmtr,
               *(rpars->groupidlist),*(rpars->groupidlist+1),
-              (cnt1p->smplgroup==1?c1prop:c2prop),
-              (cnt2p->smplgroup!=1?c2prop:c1prop));
-    if ((c1prop == 0.0) || (c2prop == 0.0))
+              c2prop);
+      else
+        if ((c2prop <= 0.0) && (c1prop > 0.0))
+          fprintf(ofl,"%s%s=%.4f,%s=-",rpars->listdelmtr,
+                *(rpars->groupidlist),c1prop,*(rpars->groupidlist+1));
       fprintf(ofl,"%s-",rpars->listdelmtr);
+      }
     else
+      {
+      fprintf(ofl,"%s%s=%.4f,%s=%.4f",rpars->listdelmtr,
+                *(rpars->groupidlist),
+                (cnt1p->smplgroup==1?c1prop:c2prop),
+		*(rpars->groupidlist+1),
+                (cnt2p->smplgroup!=1?c2prop:c1prop));
       if (c2prop > c1prop)
         fprintf(ofl,"%s%.2f",rpars->listdelmtr,c2prop/c1prop);
       else
         fprintf(ofl,"%s%.2f",rpars->listdelmtr,c1prop/c2prop);
+      }
     }
   fputc('\n',ofl);
   }
@@ -4047,7 +4066,7 @@ for (ap = 1; ap < argc; ap++)
           if (fendp == argv[ap])    /* failed to read */
             err_msg_die("Can't convert integer '%s' for -%c\n",argv[ap],op);
           else
-            if (rpars.cpgcntscrit < 0.0)
+            if (rpars.cpgcntscrit < 0)
               err_msg_die("Invalid %s count criterion: %d",dm_cpg_or_c(&rpars),
                              rpars.cpgcntscrit);
           }

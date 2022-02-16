@@ -1,6 +1,10 @@
 /* diffmeth.h: defs for diffmeth count-binning stuff */
 
-#define PROG_VERSION 1.77
+#define PROG_VERSION 1.79
+/* improve meth proportion output: Feb-2022 */
+/* #define PROG_VERSION 1.78 */
+/* tidy some details for DMAP2: Aug-2021 */
+/* #define PROG_VERSION 1.77 */
 /* user-defined fragments: Jan/Feb-2018 */
 /* #define PROG_VERSION 1.76 */
 /* allow sam/bam FLAG values other than 0 & 16; Nov-2017 */
