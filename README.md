@@ -1,29 +1,15 @@
 # DMAP
 
-	  Programs and Scripts for Bisulphite Sequence Data
-
+##	  Programs and Scripts for Bisulphite Sequence Data
+```
 Peter A. Stockwell
 Dept of Pathology,
 University of Otago,
 Dunedin, New Zealand.
 
 peter.stockwell@otago.ac.nz
-
+```
 ----------------------------------------------------------------------
-
-
-rmapbsbed2cpg
-bin_cnts
-scan_cpg_depth
-mkrrgenome
-cleanadaptors
-diffmeth
-identgeneloc
-
-illum2fasta.awk
-mk4to1lines.awk
-bismmethex2list.awk
-tidyrrnams.awk
 
 These programs have been written in the course of work on differential
 CpG methylation of the human genome and represent a series of tools
@@ -87,11 +73,11 @@ generate a local file which can be unpacked with:
 unzip DMAP-master.zip
 
 generating a directory DMAP-master containing three directories:
-
+```
 include - containing some of the generic header files
 data - containing contam.fa - the complete cleanadaptors data set
 src - containing the rest of the source code and Makefile.
-
+```
 2. Using 'git clone https://github.com/peterstockwell/DMAP' which will
 download the DMAP directory:
 
