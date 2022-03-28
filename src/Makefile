@@ -29,7 +29,7 @@ MATHFSMOBJS = $(MATHSOBJS) fsm_ops.o $(BAMOBJS)
 
 # dependency rules
 
-EXES = rmapbsbed2cpg bin_cnts mkrrgenome scan_cpg_depth diffmeth identgeneloc
+EXES = rmapbsbed2cpg mkrrgenome scan_cpg_depth diffmeth identgeneloc
 #EXES = rmapbsbed2cpg bin_cnts mkrrgenome diffmeth identgeneloc
 
 all: $(EXES) cleanadaptors
