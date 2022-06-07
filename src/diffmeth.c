@@ -277,11 +277,12 @@ DM_CPGPOS_ELT *dm_appndcpgpos(DM_CPGPOS_ELT **cpgposlst,
 /* append a new cpgpos element to end of cpgposlst.
 return address of new element in case useful.  if do3pc
 then append a count on higher, being the C position in
-the complementary strand */
+the complementary strand.  Reject 0 or -ve cpgpos entries
+since these are a flag to ignore the values. */
 {
 DM_CPGPOS_ELT *prev, *end_ptr;
 
-if (cpgposlst != NULL)
+if ((cpgposlst != NULL) && (cgpos > 0))
   {
   prev = end_ptr = *cpgposlst;
   while (end_ptr != NULL)
@@ -1303,8 +1304,11 @@ switch (rpp->binstyle)
       {
       if (rpp->samfst3p2prv)
         (void) dm_appndcpgpos(cpgposlst,(binstrt+binlength),!rpp->cntcpgsas1);
-      newelt->cpgposlist = *cpgposlst;
-      *cpgposlst = NULL;
+      if (cpgposlst != NULL)
+        {
+        newelt->cpgposlist = *cpgposlst;
+        *cpgposlst = NULL;
+	}
       }
     if ((rpp->chrbininfo+chrno)->binlst == NULL)
       (rpp->chrbininfo+chrno)->binlst = newelt;
@@ -1336,6 +1340,8 @@ DM_CPGPOS_ELT *cpgposlst;
 int prvcpgpos;
 char *sqp;
 off_t filelen;
+DM_CPG_BIN *fxdbinp;
+DM_CPG_BIN *fxdbinlst;
 
 rcnt = 0;
 for (chno = 0; chno < rpp->maxchrno; chno++)
@@ -1343,12 +1349,10 @@ for (chno = 0; chno < rpp->maxchrno; chno++)
     {
     if ((chsqfl = sqfl_opnsqstrct((rpp->chrbininfo+chno)->chrflname,SFMT_fasta,"r")) != NULL)
       {
+      filelen = sqfl_filelength(chsqfl->sfl);
       if (rpp->needseq)
-        {
-        filelen = sqfl_filelength(chsqfl->sfl);
         sqp = (rpp->chrbininfo+chno)->chromseq =
           (char *) getmemory((size_t) filelen+1,"Chromosomebuff");
-        }
       sqfl_rewind(chsqfl);
       (void) sqfl_skipsqflhdr(chsqfl);
       fs_initrun(cpgfsmp);
@@ -1361,70 +1365,114 @@ for (chno = 0; chno < rpp->maxchrno; chno++)
         cpgs = 0;
       cpgposlst = NULL;
       prvcpgpos = 0;
+/* make bin set for fixed windows, if this is bin style */
+      fxdbinlst = NULL;
+      if ((rpp->binstyle == DM_bin_fixed) && (rpp->binwidth > 0))
+        {
+	cpos = 1;
+	while (cpos <= filelen)
+	  {
+	  binsend = dm_completefrag(rpp,&binsend,chno,cpos,rpp->binwidth,0,NULL);
+	  if (fxdbinlst == NULL)
+	    fxdbinlst = binsend;
+	  cpos += rpp->binwidth;
+	  }
+        thislen = 0;
+	}
+      cpos = prvcpgpos = 0;
+      fxdbinp = NULL;
       while ((nxtres = sqfl_getnxtres(chsqfl)) != '\0')
         {
         cpos++;
-        if (rpp->binstyle == DM_bin_fixed)
-          {
-          if (cpos%rpp->binwidth == 1) /* fxd width bin, note it */
-            {
-            binsend = dm_completefrag(rpp,&binsend,chno,prvmat,rpp->binwidth,cpgs,&cpgposlst);
-            prvmat = cpos;
-            cpgs = 0;
-            thislen = 0;
-            }
-          else
-            thislen++;
-          }
+        thislen++;
+        (rpp->chrbininfo+chno)->chrlen = cpos;
         if (rpp->needseq)
           {
           *sqp = nxtres;
           sqp++;
           *sqp = '\0';
           }
-        (rpp->chrbininfo+chno)->chrlen = cpos;
         if ((frp = fs_procchr(cpgfsmp,nxtres,tr_nares2int)) != NULL)
           {
           dpep = (FS_DATPRELT *) frp->action;
-/*          if (debuglevel > RBC_dbg_none)
-             fprintf(stdout,"Match: %s @ %d\n",dpep->dstrng,cpos); */
+          if (debuglevel > RBC_dbg_none)
+             fprintf(stdout,"Match: %s @ %d (prev=%d)\n",dpep->dstrng,cpos,prvcpgpos);
           switch (dpep->ldstr)
             {
             case 2: /* CpG */
               if (rpp->cpgdetails)
                 {
-                if (prvcpgpos > 0)
+                if (rpp->binstyle == DM_bin_fixed)
+		  {  /* need to get pointer to correct bin */
+                  if ((fxdbinp == NULL) || !int_in_rng(fxdbinp->spos,prvcpgpos,(fxdbinp->spos+fxdbinp->binlen-1)))
+                    {
+                    if (fxdbinp == NULL)
+		      fxdbinp = bc_cntbin4pos(fxdbinlst,prvcpgpos);
+		    else
+		      fxdbinp = bc_cntbin4pos(fxdbinp,prvcpgpos);
+		    }
+                  if (fxdbinp != NULL)
+                    fxdbinp->maxccnt++;
+		  (void) dm_appndcpgpos(&fxdbinp->cpgposlist,prvcpgpos,!rpp->cntcpgsas1);
+                  }
+		else
                   (void) dm_appndcpgpos(&cpgposlst,prvcpgpos,!rpp->cntcpgsas1);
-                prvcpgpos = cpos-1;
                 }
+              prvcpgpos = cpos-1;
               cpgs++;
               break;
             case 1: /* any C */
               if (rpp->cpgdetails)
                 {
-                if (prvcpgpos > 0)
+                if (rpp->binstyle == DM_bin_fixed)
+		  {  /* need to get pointer to correct bin */
+                  if ((fxdbinp == NULL) || !int_in_rng(fxdbinp->spos,prvcpgpos,(fxdbinp->spos+fxdbinp->binlen-1)))
+                    {
+                    if (fxdbinp == NULL)
+		      fxdbinp = bc_cntbin4pos(fxdbinlst,prvcpgpos);
+		    else
+		      fxdbinp = bc_cntbin4pos(fxdbinp,prvcpgpos);
+		    }
+                  if (fxdbinp != NULL)
+                    fxdbinp->maxccnt++;
+		  (void) dm_appndcpgpos(&fxdbinp->cpgposlist,prvcpgpos,!rpp->cntcpgsas1);
+                  }
+		else
                   (void) dm_appndcpgpos(&cpgposlst,prvcpgpos,!rpp->cntcpgsas1);
-                prvcpgpos = cpos;
                 }
+              prvcpgpos = cpos;
               cpgs++;
               break;
             default: /* some other site */
               thismat = cpos-dpep->ldstr + ((int) dpep->stxt) + 1;
               if (rpp->binwidth == 0)
                 thislen = thismat - prvmat;
-              binsend = dm_completefrag(rpp,&binsend,chno,prvmat,thislen,cpgs,&cpgposlst);
-              if (rpp->cpgdetails)
-                prvcpgpos = thismat;
-              if (rpp->cpgdetails && rpp->samfst3p2prv)
-                cpgs = 1;
-              else
-                cpgs = 0;
+              if (rpp->binstyle != DM_bin_fixed)
+                {
+                binsend = dm_completefrag(rpp,&binsend,chno,prvmat,thislen,cpgs,&cpgposlst);
+                if (rpp->cpgdetails)
+                  prvcpgpos = thismat;
+                if (rpp->cpgdetails && rpp->samfst3p2prv)
+                  cpgs = 1;
+                else
+                  cpgs = 0;
+		}
               prvmat = thismat;
               break;
             }
           }
         }
-      binsend = dm_completefrag(rpp,&binsend,chno,prvmat,thislen,cpgs,&cpgposlst);
+      if (rpp->binstyle != DM_bin_fixed)
+        binsend = dm_completefrag(rpp,&binsend,chno,prvmat,thislen,cpgs,&cpgposlst);
+      else
+        {
+	fxdbinp = rpp->chrbininfo->binlst;
+	while (fxdbinp != NULL)
+	  {
+	  fxdbinp->cpgcnt = fxdbinp->maxccnt;
+	  fxdbinp = fxdbinp->nxtbin;
+	  }
+	}
       sqfl_clssqstrct(chsqfl);
       rcnt++;
       }
