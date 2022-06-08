@@ -1466,7 +1466,7 @@ for (chno = 0; chno < rpp->maxchrno; chno++)
         binsend = dm_completefrag(rpp,&binsend,chno,prvmat,thislen,cpgs,&cpgposlst);
       else
         {
-	fxdbinp = rpp->chrbininfo->binlst;
+	fxdbinp = (rpp->chrbininfo+chno)->binlst;
 	while (fxdbinp != NULL)
 	  {
 	  fxdbinp->cpgcnt = fxdbinp->maxccnt;
