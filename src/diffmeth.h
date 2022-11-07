@@ -1,6 +1,8 @@
 /* diffmeth.h: defs for diffmeth count-binning stuff */
 
-#define PROG_VERSION 1.80
+#define PROG_VERSION 1.81
+/* correct WGBS count check: Nov-2022 */
+/* #define PROG_VERSION 1.80 */
 /* correct final CpG for fixed windows: Jun-2022 */
 /* #define PROG_VERSION 1.79 */
 /* improve meth proportion output: Feb-2022 */

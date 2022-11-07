@@ -2255,8 +2255,14 @@ int dm_chkfemethcriteria(DM_RUNPARS *rpp,
 /* apply the checks for diff methylation for
 Fisher's Exact test */
 {
-return(((binp->cpgcnt >= 5) && (c1p->unmethcnt >= 0) && (c2p->unmethcnt >= 0)
-        && dm_cntsarevalid(rpp,binp,c1p) && dm_cntsarevalid(rpp,binp,c2p)));
+/* WGBS doesn-t set cpgcnts, so test this separately */
+if (rpp->binwidth > 0)
+  return(((c1p->methcnt + c1p->unmethcnt) > 0) &&
+           ((c2p->methcnt + c2p->unmethcnt) > 0) &&
+           dm_cntsarevalid(rpp,binp,c1p) && dm_cntsarevalid(rpp,binp,c2p));
+else
+  return(((binp->cpgcnt >= 5) && (c1p->unmethcnt >= 0) && (c2p->unmethcnt >= 0)
+          && dm_cntsarevalid(rpp,binp,c1p) && dm_cntsarevalid(rpp,binp,c2p)));
 }
 
 double dm_checkprval(double pr)
@@ -2567,24 +2573,28 @@ float pr;
 int df;
 int tothits;
 
-if ((binp->cpgcnt < rpp->mincpgs) || (binp->cpgcnt <= 0))
-  return(0);
+if ((binp->cpgcnt <= 0) && (rpp->binwidth > 0))
+/* WGBS omits cpg counts, so return true */
+  return(1);
 else
-  {
-  tothits = dm_totbincnts(binp->cntlst,1);
-  hitspercpg = (float) tothits/binp->cpgcnt;
-  if (rpp->binprfun != NULL)
-    {
-    pr = dm_checkprval((*rpp->binprfun)(rpp,binp,&df));
-    return(((rpp->cntthreshold <= 0) || (tothits >= rpp->cntthreshold)) &&
-/*           ((rpp->minhitspercpg == 0.0) || (hitspercpg >= rpp->minhitspercpg)) &&
-           ((rpp->maxhitspercpg == 0.0) || (hitspercpg < rpp->maxhitspercpg)) && */
-             ((rpp->prthreshold == 1.0) || (pr <= rpp->prthreshold)) &&
-             ((df+1) >= rpp->minsamples));
-    }
+  if ((binp->cpgcnt < rpp->mincpgs) || (binp->cpgcnt <= 0))
+    return(0);
   else
-    return((rpp->cntthreshold <= 0) || (tothits >= rpp->cntthreshold));
-  }
+    {
+    tothits = dm_totbincnts(binp->cntlst,1);
+    hitspercpg = (float) tothits/binp->cpgcnt;
+    if (rpp->binprfun != NULL)
+      {
+      pr = dm_checkprval((*rpp->binprfun)(rpp,binp,&df));
+      return(((rpp->cntthreshold <= 0) || (tothits >= rpp->cntthreshold)) &&
+  /*           ((rpp->minhitspercpg == 0.0) || (hitspercpg >= rpp->minhitspercpg)) &&
+             ((rpp->maxhitspercpg == 0.0) || (hitspercpg < rpp->maxhitspercpg)) && */
+               ((rpp->prthreshold == 1.0) || (pr <= rpp->prthreshold)) &&
+               ((df+1) >= rpp->minsamples));
+      }
+    else
+      return((rpp->cntthreshold <= 0) || (tothits >= rpp->cntthreshold));
+    }
 }
 
 double dm_totalss4bin(DM_RUNPARS *rpp,
