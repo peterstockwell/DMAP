@@ -1,6 +1,8 @@
 /* diffmeth.h: defs for diffmeth count-binning stuff */
 
-#define PROG_VERSION 1.81
+#define PROG_VERSION 1.82
+/* count CpG details for WGBS: Nov-2022 */
+/* #define PROG_VERSION 1.81 */
 /* correct WGBS count check: Nov-2022 */
 /* #define PROG_VERSION 1.80 */
 /* correct final CpG for fixed windows: Jun-2022 */

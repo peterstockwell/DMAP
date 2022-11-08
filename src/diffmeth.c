@@ -4143,6 +4143,7 @@ for (ap = 1; ap < argc; ap++)
           {
           rpars.binwidth = (int) strtol(argv[ap],&fendp,10);
           rpars.binstyle = DM_bin_fixed;
+          rpars.cpgdetails = 1;     /* else won't count CpGs */
           if (fendp == argv[ap])    /* failed to read */
             err_msg_die("Can't convert int '%s' for -%c\n",argv[ap],op);
           if (rpars.binwidth == 0)
