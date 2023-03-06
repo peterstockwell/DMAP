@@ -333,6 +333,8 @@ typedef enum DM_read_sens
   }
 DM_READ_SENS;
 
-/* #define BAM_FLAG_CMP 16 */
-/* Now defined in bam_fns.h, where it should have been
-in the first place */
+#ifndef BAM_FLAG_CMP
+#define BAM_FLAG_CMP 16
+#endif
+/* Should be defined in bam_fns.h, where it should have been
+in the first place, have it here in case */
