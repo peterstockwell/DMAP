@@ -12,12 +12,12 @@ CC = gcc
 CCLDFLGS =
 CINCLUDES = -I../include
 ZLIB = -lz
-CCLIBS = -lm $(ZLIB)
+CCLIBS = -lm -lc $(ZLIB)
 LCLLIBPATH = /usr/local/lib
 LCLLIB = -L $(LCLLIBPATH)
 CDEFINES =
 CCMP = $(CC) -c $(CFLGS) $(CDEFINES) -o $@ $(CINCLUDES) $*.c
-CCLD = $(CC) $(CCLDFLGS) -o $@ $@.o $(SYSLIBS)
+CCLD = $(CC) $(CCLDFLGS) -o $@ $@.o $(CCLIBS)
 OBJS = bas_fns.o sqfl_fns.o sqmat_fns.o wlu_fns.o rbs_fns.o mrg_fns.o
 C_OBJS = cpgis.o $(OBJS)
 BAMHDRS = $(HDRLOC)bam_fns.h
@@ -47,7 +47,7 @@ rmapbsbed2cpg.o: rmapbsbed2cpg.c rmapbsbed2cpg.h mrg_fns.h rbs_fns.h
 		 $(CCMP)
 
 bin_cnts: bin_cnts.o $(FSMOBJS)
-	  $(CCLD) $(LCLLIB) $(FSMOBJS) $(CCLIBS)
+	  $(CCLD) $(LCLLIB) $(FSMOBJS)
 
 bin_cnts.o: bin_cnts.c bin_cnts.h
 	    $(CCMP)
@@ -59,7 +59,7 @@ mkrrgenome.o: mkrrgenome.c bin_cnts.h rmapbsbed2cpg.h
 	      $(CCMP)
 
 diffmeth: diffmeth.o $(MATHFSMOBJS) $(BAMOBJS)
-	  $(CCLD) $(LCLLIB) $(MATHFSMOBJS) $(CCLIBS)
+	  $(CCLD) $(LCLLIB) $(MATHFSMOBJS)
 
 diffmeth.o: diffmeth.c diffmeth.h $(BAMHDRS)
 	    $(CCMP)
@@ -71,19 +71,19 @@ diffmeth_nozlib.o: diffmeth.c diffmeth.h
 	    $(CC) -c $(CFLGS) -o diffmeth_nozlib.o $(CINCLUDES) diffmeth.c
 
 scan_cpg_depth: scan_cpg_depth.o $(FSMOBJS)
-		$(CCLD) $(FSMOBJS) $(CCLIBS)
+		$(CCLD) $(FSMOBJS)
 
 scan_cpg_depth.o: scan_cpg_depth.c
 		  $(CCMP)
 
 cleanadaptors: cleanadaptors.o $(FSMOBJS)
-	export LD_RUN_PATH=$(LCLLIBPATH); $(CCLD) -L$(LCLLIBPATH) $(FSMOBJS) $(CCLIBS)
+	export LD_RUN_PATH=$(LCLLIBPATH); $(CCLD) -L$(LCLLIBPATH) $(FSMOBJS)
 
 cleanadaptors.o: cleanadaptors.c
 	    $(CCMP)
 
 identgeneloc: identgeneloc.o $(DBPARSOBJS)
-	$(CCLD) $(DBPARSOBJS) $(CCLIBS)
+	$(CCLD) $(DBPARSOBJS)
 
 identgeneloc.o: identgeneloc.c
 		$(CCMP)
