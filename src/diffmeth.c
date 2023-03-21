@@ -80,8 +80,8 @@ fputs("     -S <samfile> as for -R, second group data\n",fl);
 fputs("     -S <samorbamfile> as for -R, second group data\n",fl);
 fputs("     -z/-Z switch between sam (-Z) & bam (-z) for -R/-S input - positional (def=-Z)\n",fl);
 #endif
-fputs("     -g <genomehead> dir and file string to locate genomic seq files by adding n.fa\n",fl);
-fputs(" or  -G <chr_info_file> file of chromosome IDs and filenames\n",fl);
+fputs("     -G <chr_info_file> file of chromosome IDs and filenames\n",fl);
+fputs(" or  -g <genomehead> dir and file string to locate genomic seq files by adding n.fa (obsolete, use -G method)\n",fl);
 fputs(
 "     -p <j,k> pairwise scan meth variance of RR frags j..k (Li, et al. (2010) PLOSBiology,11,e1000533)\n"
 ,fl);
