@@ -7,7 +7,7 @@ Dunedin, New Zealand.
 
 peter.stockwell@otago.ac.nz
 
-20-Apr-2017
+22-Mar-2023
 ----------------------------------------------------------------------
 
 rmapbsbed2cpg
@@ -30,8 +30,8 @@ particularly focussed on reduced representation (RR) bisulphite
 sequencing (RRBS) as in Meissner, et al., 2008, Nature, 454, 766-770,
 Smith, et al., 2009) Methods, 48, 226-232 and Gu, et al., 2011, Nature
 Protocols, 6, 468-481.  This software should, none-the-less, have
-wider application than that.  From v1.70 the diffmeth program will now
-handle non-CpG methylation.
+wider application than that.  From v1.70 the diffmeth program now
+handles non-CpG methylation.
 
 This package has been published in: Stockwell, P.A., Chatterjee, A.,
 Rodger, E.J. and Morison, I.M. "DMAP: Differential Methylation
@@ -65,17 +65,27 @@ used to control bam/sam file usage - the no X,Y chromosome option is
 now -Y.  Note that the -G method of giving chromosomal information is
 preferred and makes the -Y option superfluous.
 
-Distribution: source code is a compressed tar archive which can be
-unpacked with a command like:
+Distribution:
 
-gzip -dc meth_progs_dist_v2.tar.gz | tar -xvf -
+Now available from https://github.com/peterstockwell/DMAP either by
+executing:
 
-generating a directory meth_progs_dist containing two directories:
-include, containing some of the generic header files and src
-containing the rest of the source code and Makefile.  The set can be
-built with the following commands:
+git clone https://github.com/peterstockwell/DMAP
 
-cd meth_progs_dist/src
+producing a directory DMAP or by going to the github respository at
+
+https://github.com/peterstockwell/DMAP
+
+and using the 'Code' and 'Download ZIP' links to get the file
+DMAP-master.zip which can be unpacked with:
+
+unzip DMAP-master.zip
+ 
+creating a directory DMAP-master.
+
+In either case cd into the directory (DMAP/src or DMAP-master/src) and
+execute
+
 make
 
 Some warnings may appear but these can be ignored.  The executables
@@ -100,7 +110,7 @@ dispensible.
 If the diffmeth compile fails through the lack of zlib, then this
 should be obtained and installed (see above).  If that is not possible
 then you can build the programs without zlib, but it will not be
-possible to read bam files or process gz compressed fastq with
+possible to read bam files or process gzip compressed fastq with
 cleanadaptors.  To do this execute:
 
 make nozlib
@@ -173,7 +183,7 @@ Alternatively, the -G option lets each chromosome be specified by its
 own identifier (which need not be 1,2,...,X,Y) and the fasta file
 containing the sequence.  This option, as for other programs in the
 set, permits avian chromosome sets, mitochondrial sequences and for
-the various files to be distributed in different places.
+the various files to be located in different places.
 
 Program Options:
 
@@ -948,8 +958,8 @@ Options:
      -s <posfile> as for -r, second group data
      -S <samfile> as for -R, second group data
      -z/-Z switch between sam (-Z) & bam (-z) for -R/-S input - positional (def=-Z)
-     -g <genomehead> dir and file string to locate genomic seq files by adding n.fa
- or  -G <chr_info_file> file of chromosome IDs and filenames
+     -G <chr_info_file> file of chromosome IDs and filenames
+ or  -g <genomehead> dir and file string to locate genomic seq files by adding n.fa (obsolete, use -G method)
      -p <j,k> pairwise scan meth variance of RR frags j..k (Li, et al. (2010) PLOSBiology,11,e1000533)
      -P <j,k> pairwise scan force Fisher's exact frags j..k (Li, et al. (2010) PLOSBiology,11,e1000533)
      -x <j,k> as -s but do Chi Square if possible, else pairwise FE
@@ -985,29 +995,30 @@ Options:
 
 To explain some of these options:
 
--g: As for other programs: the head for the genome sequence files to
-be completed by <n>.fa where <n> is the chromosome identifier/number.
-
 -G: A file specifying each chromosome and the file of its sequence.
 Use this option instead of -g if: (1) files are in different
 directories, (2) naming is not consistent for -g to work, (3) genome
 has chromosome IDs other than numbers, X & Y (e.g. avian or
 mitochondrial) or (4) you want a subset of chromosomes.  Format of the
 file is lines of <ChromosomeID> <Filename>
-(e.g. "Y /Genomes/hs_GRCh37/HomoSapiens_Chr_Y.fasta").
+(e.g. "Y" "/Genomes/hs_GRCh37/HomoSapiens_Chr_Y.fasta").
 Chromosomes in the output will appear in the same order as they are in
 the file. Filenames containing spaces should be enclosed in double
 quotes '"'.  Any characters on a line after a '#' (if unquoted) will
 be regarded as a comment.
 
+-g: Obsolete, use -G: As for other programs: the head for the genome
+sequence files to be completed by <n>.fa where <n> is the chromosome
+identifier/number.
+
 -r: the name of a file of methylated positions comprising <Chromosome>
 <position> <methylationstate>, e.g. "12 2457821 +".  Multiple files
 are expected with multiple -r options.
 
--R: name of a SAM file of mapped reads from bismark.  Multiple -R
-options are expected and can be mixed with -r position files.  The
-advantage of using SAM files is to avoid the 1 bp offset generated by
-the bismark methylation_extractor for which the -m option was
+-R: name of a SAM or BAM file of mapped reads from bismark.  Multiple
+-R options are expected and can be mixed with -r position files.  The
+advantage of using SAM/BAM files is to avoid the 1 bp offset generated
+by the bismark methylation_extractor for which the -m option was
 required.
 
 -s or -S: similar to -r/-R but distinguishes files belonging to a
@@ -1095,26 +1106,27 @@ Examples:
 
 1. Identifying differentially methylated regions (DMRs), pairwise: the
 following command applies Fisher's Exact statistic (-P 40,220) to a
-pair of sam files from the above.  The options given require that at
+pair of BAM files from the above.  The options given require that at
 least 2 CpGs in each fragment have 10 or more hits (-F 2 -t 10) and
 that the leading CpG of 3' mapped reads is assigned to the previous
-fragment (-N).  Only chromosome 21 is to be used (-c 21):
+fragment (-N).  Only chromosome 21 is to be used (-c 21).  Chromosome
+file information is in the file hs_GRCh37_autosomal.txt:
 
-diffmeth -g /HomoSapiens_genome/hs_ref_GRCh37/Homo_sapiens.GRCh37.65.dna.chromosome. \
- -c 21 -P 40,220 -F 2 -t 10 -N -R ctrl_1.fastq_bismark.sam -R mds_1.fastq_bismark.sam
+diffmeth -G hs_GRCh37_autosomal.txt \
+ -c 21 -P 40,220 -F 2 -t 10 -N -z -R ctrl_1.fastq_bismark.bam -R mds_1.fastq_bismark.bam
 
 The same run can be performed with bam files by including -z before
 the first input file:
 
-diffmeth -g /HomoSapiens_genome/hs_ref_GRCh37/Homo_sapiens.GRCh37.65.dna.chromosome. \
+diffmeth -G hs_GRCh37_autosomal.txt \
  -c 21 -P 40,220 -F 2 -t 10 -N -z -R ctrl_1.fastq_bismark.bam -R mds_1.fastq_bismark.bam
 
 In order to indicate which group (r or R vs s or S) was more
 methylated, one of the input sam/CpG files may be identified with -S/-s
 options, adding a >Meth column to the output: e.g.
 
-diffmeth -g /HomoSapiens_genome/hs_ref_GRCh37/Homo_sapiens.GRCh37.65.dna.chromosome. \
- -c 21 -P 40,220 -F 2 -t 10 -N -R ctrl_1.fastq_bismark.sam -S mds_1.fastq_bismark.sam
+diffmeth -G hs_GRCh37_autosomal.txt \
+ -c 21 -P 40,220 -F 2 -t 10 -N -z -R ctrl_1.fastq_bismark.bam -S mds_1.fastq_bismark.bam
 
 2. Identifying DMRs - ChiSQ test: on a cohort of 6 individuals.  The
 following command runs diffmeth using the ChiSQ statistic (-X 40,220)
@@ -1126,11 +1138,11 @@ The comparison including control and MDS individuals is intended to
 illustrate the use of this statistic with the test data set, not to
 imply that there is no difference between the groups:
 
-diffmeth -g /HomoSapiens_genome/hs_ref_GRCh37/Homo_sapiens.GRCh37.65.dna.chromosome. \
- -c 21 -X 40,220 -F 2 -t 10 -N -I 4 -R ctrl_1.fastq_bismark.sam \
- -R ctrl_2.fastq_bismark.sam -R ctrl_3.fastq_bismark.sam \
- -R mds_1.fastq_bismark.sam -R mds_2.fastq_bismark.sam \
- -R mds_3.fastq_bismark.sam
+diffmeth -G hs_GRCh37_autosomal.txt \
+ -c 21 -X 40,220 -F 2 -t 10 -N -I 4 -z -R ctrl_1.fastq_bismark.bam \
+ -R ctrl_2.fastq_bismark.bam -R ctrl_3.fastq_bismark.bam \
+ -R mds_1.fastq_bismark.bam -R mds_2.fastq_bismark.bam \
+ -R mds_3.fastq_bismark.bam
 
 3. Comparing methylation between two groups: this applies the ANOVA F
 ratio test (-a 40,220), requiring that at least 4 individuals show
@@ -1138,48 +1150,48 @@ counts for a fragment to be included (-I 4) and the leading CpG of 3'
 mapped reads is assigned to the preceding fragment (-N).  Sam data for
 the treatment/disease group is identified with -S:
 
-diffmeth -g /HomoSapiens_genome/hs_ref_GRCh37/Homo_sapiens.GRCh37.65.dna.chromosome. \
--c 21 -a 40,220 -N -I 4 -R ctrl_1.fastq_bismark.sam \
--R ctrl_2.fastq_bismark.sam -R ctrl_3.fastq_bismark.sam \
--S mds_1.fastq_bismark.sam -S mds_2.fastq_bismark.sam \
--S mds_3.fastq_bismark.sam
+diffmeth -G hs_GRCh37_autosomal.txt \
+-c 21 -a 40,220 -N -I 4 -z -R ctrl_1.fastq_bismark.bam \
+-R ctrl_2.fastq_bismark.bam -R ctrl_3.fastq_bismark.bam \
+-S mds_1.fastq_bismark.bam -S mds_2.fastq_bismark.bam \
+-S mds_3.fastq_bismark.bam
 
 4. As for 3, but indicate the more methylated group (-A 40,220) and
 restrict the output to Pr < 0.01 (-U 0.01).  Each line is suffixed
 with a 'R' or 'S' character to indicate which group had higher
 methylation and a summary of the valid sample counts for R & S groups.
 
-diffmeth -g /HomoSapiens_genome/hs_ref_GRCh37/Homo_sapiens.GRCh37.65.dna.chromosome. \
--c 21 -A 40,220 -U 0.01 -N -I 4 -R ctrl_1.fastq_bismark.sam \
--R ctrl_2.fastq_bismark.sam -R ctrl_3.fastq_bismark.sam \
--S mds_1.fastq_bismark.sam -S mds_2.fastq_bismark.sam \
--S mds_3.fastq_bismark.sam
+diffmeth -G hs_GRCh37_autosomal.txt \
+-c 21 -A 40,220 -U 0.01 -N -I 4 -z -R ctrl_1.fastq_bismark.bam \
+-R ctrl_2.fastq_bismark.bam -R ctrl_3.fastq_bismark.bam \
+-S mds_1.fastq_bismark.bam -S mds_2.fastq_bismark.bam \
+-S mds_3.fastq_bismark.bam
 
 5. Compare two individuals with Fisher's Exact Test, using the -R and
 -S group formality to make diffmeth generate columns showing the
 methylation proportion for each which is the more methylated and
 the fold difference in methylation:
 
-diffmeth -g /HomoSapiens_genome/hs_ref_GRCh37/Homo_sapiens.GRCh37.65.dna.chromosome. \
-     -P 40,220 -N -F 2 -t 10 -R Ind_1.fastq_bismark.sam  -S Ind_2.fastq_bismark.sam
+diffmeth -G hs_GRCh37_autosomal.txt \
+     -P 40,220 -N -F 2 -t 10 -z -R Ind_1.fastq_bismark.bam  -S Ind_2.fastq_bismark.bam
 
 
 6. For WGBS analysis: for tiled fixed window analysis. The option -W
 <windowlength> is added to the command.  E.g. as for 4, but
 with fixed width windows of 1000 bp rather than fragments (-W 1000).
 
-diffmeth -g /HomoSapiens_genome/hs_ref_GRCh37/Homo_sapiens.GRCh37.65.dna.chromosome. \
--c 21 -A 40,220 -W 1000 -U 0.01 -N -I 4 -R ctrl_1.fastq_bismark.sam \
--R ctrl_2.fastq_bismark.sam -R ctrl_3.fastq_bismark.sam \
--S mds_1.fastq_bismark.sam -S mds_2.fastq_bismark.sam \
--S mds_3.fastq_bismark.sam
+diffmeth -G hs_GRCh37_autosomal.txt \
+-c 21 -A 40,220 -W 1000 -U 0.01 -N -I 4 -z -R ctrl_1.fastq_bismark.bam \
+-R ctrl_2.fastq_bismark.bam -R ctrl_3.fastq_bismark.bam \
+-S mds_1.fastq_bismark.bam -S mds_2.fastq_bismark.bam \
+-S mds_3.fastq_bismark.bam
 
 7. Same as 5 above, but use a chromosome information file (-G) rather
 than -g to run with the autosomal chromosomes.  An example file
 hs_GRCh37_autosomal.txt is provided in the src distribution directory:
 
 diffmeth -G hs_GRCh37_autosomal.txt -P 40,220 -N -F 2 -t 10 \
-    -R Ind_1.fastq_bismark.sam  -S Ind_2.fastq_bismark.sam
+    -R Ind_1.fastq_bismark.bam  -S Ind_2.fastq_bismark.bam
 
 or if the -R data is a bam file and the -S sam:
 
@@ -1192,7 +1204,7 @@ only.  rstsites.txt contains the sites as indicated above (-n), and
 the mapping is for a sam file:
 
 diffmeth -G c1_chrinfo.txt -n rstsites.txt -L 40,220 \
-  -R Ind_2.fastq_bismark.sam
+  -z -R Ind_2.fastq_bismark.bam
 
 9. List all Cs with non-zero hits for a bam file, only process
 chromosome 1:
@@ -1202,9 +1214,9 @@ diffmeth -G c1_chrinfo.txt -J -E 40,220 -z -R x12_c1_bismark.bam
 10. Perform a 3 group one way analysis of variance on 9 samples,
 chromosome 1 only, writing out methylation level for each sample:
 
-diffmeth -G c1_chrinfo.txt -B 40,220 -N -R1 s1.sam -R1 s2.sam \
-  -R1 s3.sam -R2 s4.sam -R2 s5.sam -R2 s6.sam -R3 s7.sam -R3 s8.sam \
-  -R3 s9.sam
+diffmeth -G c1_chrinfo.txt -B 40,220 -N -z -R1 s1.bam -R1 s2.bam \
+  -R1 s3.bam -R2 s4.bam -R2 s5.bam -R2 s6.bam -R3 s7.bam -R3 s8.bam \
+  -R3 s9.bam
 
 ----------------------------------------------------------------------
 identgeneloc:
