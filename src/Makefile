@@ -13,11 +13,16 @@ CCLDFLGS =
 CINCLUDES = -I../include
 ZLIB = -lz
 CCLIBS = -lm -lc $(ZLIB)
+
+LCLLIBPATH = $(LIBRARY_PATH)
+ifeq ($(LCLLIBPATH),)
 LCLLIBPATH = /usr/local/lib
+endif
+
 LCLLIB = -L $(LCLLIBPATH)
 CDEFINES =
-CCMP = $(CC) -c $(CFLGS) $(CDEFINES) -o $@ $(CINCLUDES) $*.c
-CCLD = $(CC) $(CCLDFLGS) -o $@ $@.o $(CCLIBS)
+CCMP = export LD_RUN_PATH=$(LCLLIBPATH); $(CC) -c $(CFLGS) $(CDEFINES) -o $@ $(CINCLUDES) $*.c
+CCLD = $(CC) $(CCLDFLGS) $(LCLLIB) -o $@ $@.o $(CCLIBS)
 OBJS = bas_fns.o sqfl_fns.o sqmat_fns.o wlu_fns.o rbs_fns.o mrg_fns.o
 C_OBJS = cpgis.o $(OBJS)
 BAMHDRS = $(HDRLOC)bam_fns.h
@@ -47,7 +52,7 @@ rmapbsbed2cpg.o: rmapbsbed2cpg.c rmapbsbed2cpg.h mrg_fns.h rbs_fns.h
 		 $(CCMP)
 
 bin_cnts: bin_cnts.o $(FSMOBJS)
-	  $(CCLD) $(LCLLIB) $(FSMOBJS)
+	  export LD_RUN_PATH=$(LCLLIBPATH); $(CCLD) $(FSMOBJS)
 
 bin_cnts.o: bin_cnts.c bin_cnts.h
 	    $(CCMP)
@@ -59,31 +64,31 @@ mkrrgenome.o: mkrrgenome.c bin_cnts.h rmapbsbed2cpg.h
 	      $(CCMP)
 
 diffmeth: diffmeth.o $(MATHFSMOBJS) $(BAMOBJS)
-	  $(CCLD) $(LCLLIB) $(MATHFSMOBJS)
+	  export LD_RUN_PATH=$(LCLLIBPATH); $(CCLD) $(MATHFSMOBJS) $(ZLIB)
 
 diffmeth.o: diffmeth.c diffmeth.h $(BAMHDRS)
 	    $(CCMP)
 
 diffmeth_nozlib: diffmeth_nozlib.o $(MATHFSMOBJS)
-	  $(CCLD) $(MATHFSMOBJS)
+	  export LD_RUN_PATH=$(LCLLIBPATH); $(CCLD) $(MATHFSMOBJS)
 
 diffmeth_nozlib.o: diffmeth.c diffmeth.h
-	    $(CC) -c $(CFLGS) -o diffmeth_nozlib.o $(CINCLUDES) diffmeth.c
+		   $(CC) -c $(CFLGS) -o diffmeth_nozlib.o $(CINCLUDES) diffmeth.c
 
 scan_cpg_depth: scan_cpg_depth.o $(FSMOBJS)
-		$(CCLD) $(FSMOBJS)
+	$(CCLD) $(FSMOBJS) $(ZLIB)
 
 scan_cpg_depth.o: scan_cpg_depth.c
 		  $(CCMP)
 
 cleanadaptors: cleanadaptors.o $(FSMOBJS)
-	export LD_RUN_PATH=$(LCLLIBPATH); $(CCLD) -L$(LCLLIBPATH) $(FSMOBJS)
+	export LD_RUN_PATH=$(LCLLIBPATH); $(CCLD) -L$(LCLLIBPATH) $(FSMOBJS) $(ZLIB)
 
 cleanadaptors.o: cleanadaptors.c
 	    $(CCMP)
 
 identgeneloc: identgeneloc.o $(DBPARSOBJS)
-	$(CCLD) $(DBPARSOBJS)
+	export LD_RUN_PATH=$(LCLLIBPATH); $(CCLD) $(DBPARSOBJS)
 
 identgeneloc.o: identgeneloc.c
 		$(CCMP)
