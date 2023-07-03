@@ -142,6 +142,7 @@ typedef enum DBLU_ftkw
   FTKW_intron,
   FTKW_J_region,
   FTKW_LTR,
+  FTKW_lncRNA,
   FTKW_mat_peptide,
   FTKW_misc_binding,
   FTKW_misc_difference,
@@ -235,6 +236,68 @@ typedef enum DBLU_ftkw
   FTKW_continuation
   }
 DBLU_FTKW;
+
+typedef enum DBP_biotype
+  {
+  BIOTYPE_unknown = 0,
+  BIOTYPE_IG_C_gene,
+  BIOTYPE_IG_C_pseudogene,
+  BIOTYPE_IG_D_gene,
+  BIOTYPE_IG_J_gene,
+  BIOTYPE_IG_J_pseudogene,
+  BIOTYPE_IG_V_gene,
+  BIOTYPE_IG_V_pseudogene,
+  BIOTYPE_IG_pseudogene,
+  BIOTYPE_Mt_rRNA,
+  BIOTYPE_Mt_tRNA,
+  BIOTYPE_Mt_tRNA_pseudogene,
+  BIOTYPE_TEC,
+  BIOTYPE_TR_C_gene,
+  BIOTYPE_TR_D_gene,
+  BIOTYPE_TR_J_gene,
+  BIOTYPE_TR_J_pseudogene,
+  BIOTYPE_TR_V_gene,
+  BIOTYPE_TR_V_pseudogene,
+  BIOTYPE_ambiguous_orf,
+  BIOTYPE_antisense,
+  BIOTYPE_lincRNA,
+  BIOTYPE_lncRNA,
+  BIOTYPE_miRNA,
+  BIOTYPE_miRNA_pseudogene,
+  BIOTYPE_misc_RNA,
+  BIOTYPE_non_coding,
+  BIOTYPE_nonsense_mediated_decay,
+  BIOTYPE_polymorphic_pseudogene,
+  BIOTYPE_processed_pseudogene,
+  BIOTYPE_processed_transcript,
+  BIOTYPE_protein_coding,
+  BIOTYPE_pseudogene,
+  BIOTYPE_rRNA,
+  BIOTYPE_rRNA_pseudogene,
+  BIOTYPE_retained_intron,
+  BIOTYPE_scRNA,
+  BIOTYPE_scRNA_pseudogene,
+  BIOTYPE_sense_intronic,
+  BIOTYPE_sense_overlapping,
+  BIOTYPE_snRNA,
+  BIOTYPE_snRNA_pseudogene,
+  BIOTYPE_snoRNA,
+  BIOTYPE_snoRNA_pseudogene,
+  BIOTYPE_tRNA_pseudogene,
+  BIOTYPE_transcribed_processed_pseudogene,
+  BIOTYPE_transcribed_unitary_pseudogene,
+  BIOTYPE_transcribed_unprocessed_pseudogene,
+  BIOTYPE_translated_processed_pseudogene,
+  BIOTYPE_translated_unprocessed_pseudogene,
+  BIOTYPE_unitary_pseudogene,
+  BIOTYPE_unprocessed_pseudogene,
+  BIOTYPE_vaultRNA,
+  }
+DBP_BIOTYPE;
+
+/* MAX_BIOTYPE_LENGTH to define an array length: max is actually 34, but
+allow extra for changes */
+#define MAX_BIOTYPE_LENGTH 56
 
 typedef enum DBLU_floctype
   {
@@ -682,6 +745,9 @@ will return NULL.  malloc failures will die */
 char *db_ftkw2str(DBLU_FTKW kw);
   /* return a string corresponding to the kw given */
 
+char *db_ftqu2str(DBLU_FTQUAL fqual);
+  /* return a string for fqual */
+
 char *db_ftkw2text(DBLU_FTKW kw);
   /* return a long string corresponding to the kw given */
 
@@ -809,7 +875,8 @@ DB_TBLINFO *db_appnielt(DB_TBLINFO **spt,
                         DBLU_FTQUAL fql,
                         char *info);
 /* malloc and append a information element to list *spt.
-  return the address of the new element */
+  return the address of the new element. info may have
+  needed to be malloced.*/
 
 void db_delielt(DB_TBLINFO *sp,
                 DB_TBLINFO **lstrt,
@@ -1672,6 +1739,7 @@ int dbp_parse_gtf_ln(FILE *srcfl,
                      char *ln,
                      WRD_LUSTRCT *ftkw,
                      DB_FTYPELT *ftwrds,
+                     WRD_LUSTRCT *wantedgtypes,
                      DBP_MULTI_ELEMNT **elmntlst,
                      DB_STR_ELT *attr);
 /* ln contains text: check for strlen() > 0;  if so, 
@@ -1683,7 +1751,14 @@ if so, insert relevant information to that elemnt,
 else append a new element and init it.
 if attr is non-NULL, then use it to select the
 attribute values for the last field.
-return 1 if something was parsed */
+return 1 if something was parsed.
+There is significant variation in how
+the attribute field is used.  This version
+allows for '\t', ' ', '=' & ';' to separate
+the attribute pairs.  Attributes can then
+be examined by skipping through list in pairs.
+If wantedgtypes is non-NULL, then check that the
+gene_type attribute is valid. */
 
 int dbp_findparentfeats(DB_ENTSTRCT *esp,
                         int (*strcmpfn)(const char *s1,
