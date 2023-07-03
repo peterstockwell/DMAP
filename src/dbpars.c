@@ -18,6 +18,13 @@
 #include "dbpars.h"
 /* #include "dblu_fns.h" */
 
+/* global variables: where reference to
+a defined location is appropriate */
+
+/* Dequote string used in deauotbiotypestr() */
+
+char btypecopy[MAX_BIOTYPE_LENGTH+1];
+
 int db_datoffst(DBLU_DBFMT fmt)
   /* return the start of normal data */
 {
@@ -241,6 +248,9 @@ switch (kw)
     break;
   case FTKW_LTR:
     return("LTR");
+    break;
+  case FTKW_lncRNA:
+    return("lncRNA");
     break;
   case FTKW_mat_peptide:
     return("mat_peptide");
@@ -571,6 +581,9 @@ switch (kw)
   case FTKW_LTR:
     return("Long Terminal Repeat");
     break;
+  case FTKW_lncRNA:
+    return("long noncoding RNA");
+    break;
   case FTKW_mat_peptide:
     return("Mature peptide coding region (does not include stop codon)");
     break;
@@ -838,8 +851,143 @@ switch (kw)
   }
 }
 
+char *db_ftqu2str(DBLU_FTQUAL fqual)
+  /* return a string for fqual */
+{
+switch (fqual)
+  {
+  case FTQU_anticodon:
+    return("anticodon");
+    break;
+  case FTQU_bound_moiety:
+    return("bound_moiety");
+    break;
+  case FTQU_citation:
+    return("citation");
+    break;
+  case FTQU_codon:
+    return("codon");
+    break;
+  case FTQU_codon_start:
+    return("codon_start");
+    break;
+  case FTQU_cons_splice:
+    return("cons_splice");
+    break;
+  case FTQU_db_xref:
+    return("db_xref");
+    break;
+  case FTQU_direction:
+    return("direction");
+    break;
+  case FTQU_EC_number:
+    return("EC_number");
+    break;
+  case FTQU_evidence:
+    return("evidence");
+    break;
+  case FTQU_frequency:
+    return("frequency");
+    break;
+  case FTQU_function_qu:
+    return("function_qu");
+    break;
+  case FTQU_gene:
+    return("gene");
+    break;
+  case FTQU_label_qu:
+    return("label_qu");
+    break;
+  case FTQU_mod_base:
+    return("mod_base");
+    break;
+  case FTQU_note:
+    return("note");
+    break;
+  case FTQU_number:
+    return("number");
+    break;
+  case FTQU_organism:
+    return("organism");
+    break;
+  case FTQU_partial:
+    return("partial");
+    break;
+  case FTQU_phenotype:
+    return("phenotype");
+    break;
+  case FTQU_product:
+    return("product");
+    break;
+  case FTQU_protid:
+    return("protid");
+    break;
+  case FTQU_pseudo:
+    return("pseudo");
+    break;
+  case FTQU_rpt_family:
+    return("rpt_family");
+    break;
+  case FTQU_rpt_type:
+    return("rpt_type");
+    break;
+  case FTQU_rpt_unit:
+    return("rpt_unit");
+    break;
+  case FTQU_standard_name:
+    return("standard_name");
+    break;
+  case FTQU_transl_except:
+    return("transl_except");
+    break;
+  case FTQU_transl_table:
+    return("transl_table");
+    break;
+  case FTQU_type_qu:
+    return("type_qu");
+    break;
+  case FTQU_usedin:
+    return("usedin");
+    break;
+  case FTQU_locus_tag:
+    return("locus_tag");
+    break;
+  case FTQU_GO_info:
+    return("GO_info");
+    break;
+  case FTQU_name:
+    return("name");
+    break;
+  case FTQU_biotype:
+    return("biotype");
+    break;
+  case FTQU_phosphothre:
+    return("phosphothre");
+    break;
+  case FTQU_phosphoser:
+    return("phsophoser");
+    break;
+  FTQU_unknown:
+  default:
+    return("Unknown");
+    break;
+  }
+}
+
 WRD_LUSTRCT *db_getkwstrct(DBLU_DBFMT dfmt)
-  /* create and fill datastructure for feature table key word parsing,
+  /* create and fill datastructure for feature table key word parsing:
+    return("phosphoser
+
+  case FTQU_unknown:
+  default:
+    return("Unknown");
+    break;
+  }
+}
+
+WRD_LUSTRCT *db_getkwstrct(DBLU_DBFMT dfmt)
+  /* create and fill datastructure for feature table key word parsing");
+break;
 depending on dfmt.  return pointer to that structure, NULL for invalid
 dfmt  */
 {
@@ -1020,6 +1168,7 @@ switch (dfmt)
     wlu_addwrd(ws,"inter",(int) FTKW_intergenic,NULL);
     wlu_addwrd(ws,"transcript",(int) FTKW_prim_transcript,NULL);
     wlu_addwrd(ws,"gene",(int) FTKW_FT_gene,NULL);
+    wlu_addwrd(ws,"lncRNA",(int) FTKW_lncRNA,NULL);
     return(ws);
     break;
   case DBFMT_unknown:
@@ -1420,7 +1569,8 @@ if (sp != NULL)
   if ((pt = sp->nxtselt) != NULL)
     pt->prvselt = sp->prvselt;
   else
-    *lend = sp->prvselt;
+    if (lend != NULL)
+      *lend = sp->prvselt;
   memfree(sp->strval);
   memfree(sp);
   }
@@ -1589,12 +1739,14 @@ DB_TBLINFO *db_appnielt(DB_TBLINFO **spt,
                         DBLU_FTQUAL fql,
                         char *info)
 /* malloc and append a information element to list *spt.
-  return the address of the new element */
+  return the address of the new element. info may have
+  needed to be malloced.*/
 {
 DB_TBLINFO *prev, *endp;
 
 if (spt != NULL)
   {                     /* chain to end of list */
+/* printf("App: '%s' = %s\n",db_ftqu2str(fql),info); */
   prev = endp = *spt;
   while (endp != NULL)
     {
@@ -5573,7 +5725,7 @@ while (scn)
       {
       if (flst != NULL)  /* appnd cont info */
         {
-        flst->infoend = db_appnielt(&flst->infolist,qual,cmt);
+        flst->infoend = db_appnielt(&flst->infolist,qual,bas_strdup(cmt));
         es->cp = NULL;
         }
       else   /* cont line, but not one we want */
@@ -6724,11 +6876,54 @@ while (tpt < tmax)
 return(NULL);
 }
 
+char *dequotebiotypestr(char *str)
+  /* return ptr to a string copy with
+double quotes removed. */
+{
+int clen;
+
+clen = strlen(str) - 2;
+(void) strncpy(&btypecopy[0],(str+1),clen);
+btypecopy[clen] = '\0';
+return(&btypecopy[0]);
+}
+
+int db_gtf_attr_match(char *tokens[],
+                      int ntokns,
+                      WRD_LUSTRCT *entftkwds,
+                      DB_FTYPELT *ftwrds,
+                      char *attr2fnd)
+/* scan gtf line attributes from start,
+looking for attr2fnd.  tokens ends up with
+attribute types in index 8,10,12..., with attribute
+values in 9,11,13.... Return true if its value
+is feat2fnd.  tokens contain '"', so need to
+remove them, probably copy.
+Return token count of matching string value, 0 for
+not found */
+{
+int tpt;
+
+tpt = 8;
+while (tpt < ntokns)
+  {
+  if (strcmp(tokens[tpt],attr2fnd) == 0)
+    {
+/* attribute values contain '"', so must lose them */
+    if (wlu_chkwrd(entftkwds,dequotebiotypestr(tokens[tpt+1])) != FTKW_unknown)
+      return(tpt+1);
+    }
+  tpt += 2;
+  }
+return(0);
+}
+
 int dbp_parse_gtf_ln(FILE *srcfl, 
                      DBP_MULTI_ELEMNT **curseq,
                      char *ln,
                      WRD_LUSTRCT *ftkw,
                      DB_FTYPELT *ftwrds,
+                     WRD_LUSTRCT *wantedgtypes,
                      DBP_MULTI_ELEMNT **elmntlst,
                      DB_STR_ELT *attr)
 /* ln contains text: check for strlen() > 0;  if so, 
@@ -6745,7 +6940,9 @@ There is significant variation in how
 the attribute field is used.  This version
 allows for '\t', ' ', '=' & ';' to separate
 the attribute pairs.  Attributes can then
-be examined by skipping through list in pairs */
+be examined by skipping through list in pairs.
+If wantedgtypes is non-NULL, then check that the
+gene_type attribute is valid. */
 {
 char **lp;
 char *tokens[GTFMAXTOKCNT];
@@ -6765,6 +6962,8 @@ char *gennotecpy;
 DB_FEATSTRCT *firstidfeatp;
 DB_STR_ELT *strp;
 int p5val;
+DBLU_FTQUAL ftqual;
+int gtf_attr_mat_no;
 
 /* check line for leading '#' */
 if (*ln != '#')
@@ -6792,7 +6991,11 @@ if (*ln != '#')
   thisfeat = wlu_chkwrd(eltp->me_entstrptr->fkwlu,tokens[2]);
   /* do we want this sort of feature?? */
   eltp->me_entstrptr->nseen++;
-  if (db_ptr4felt(ftwrds,thisfeat) != NULL)
+  if ((gtf_attr_mat_no = db_gtf_attr_match(tokens,tcnt,wantedgtypes,ftwrds,"gene_type")) > 0)
+    ftqual = FTQU_biotype;
+  else
+    ftqual = FTQU_unknown;
+  if ((db_ptr4felt(ftwrds,thisfeat) != NULL) && ((wantedgtypes == NULL) || (ftqual != FTQU_unknown)))
     {
 /*  have we already seen this feature?? */
     tpt = 8;
@@ -6840,6 +7043,7 @@ db_sayafeatcore(stdout,eltp->me_entstrptr,ftptr,0); */
         else
           ftptr->strctsens = DB_sens_comp;
         ftptr->idp = bas_strdup(thisid);
+        ftptr->infoend = db_appnielt(&ftptr->infolist,FTQU_biotype,bas_strdup(dequotebiotypestr(tokens[gtf_attr_mat_no])));
         }
       else /* does this new feature qualify an existing one? (e.g. exons in gene) */
         {
