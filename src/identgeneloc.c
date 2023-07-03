@@ -75,8 +75,10 @@ ChrNo. start stop... */
 /* allow multiple GTF attribute outputs: Aug-2020 */
 /* #define PROG_VERS 0.23 */
 /* allow multiple user feature types: Mar-2021 */
-#define PROG_VERS 0.24
+/* #define PROG_VERS 0.24 */
 /* allow Genbank gene_ids to be found + variant Genbank LOCUS lines: Feb-2022 */
+#define PROG_VERS 0.25
+/* allow biotypes for GTF feature data: Jun-2023 */
 
 #define DEF_SRCBUFLEN 2048
 
@@ -153,13 +155,14 @@ typedef struct IGL_runpars  /* runtime parameters/data */
   int tssdistlmt;           /* limit how far from fragment we will look for TSS; 0=> no limit */
   IGL_INTRNL_STRTGY intrnlfrag; /* allow fragments internal to genes & classify wrt introns/exons */
   int geneexmrna;           /* use mRNA feature to define gene names/positions */
-  DB_STR_ELT *pcodingtypes; /* list to restrict genes to /biotype=<type> entries, NULL to ignore */
+  DB_STR_ELT *wantedcodingtypes; /* list to restrict genes to /biotype=<type> entries, NULL to ignore */
+  WRD_LUSTRCT *wantedtypewlu; /* from wantedcodingtypes list */
   int tss_cpgi_rng;         /* 1 if we are to have range positions for these entities */
   int relatefragcpgi;       /* 1 => show fragment relative to CpG Is */
   WRD_LUSTRCT *ftqul;       /* feature table qualifier look up */
   IGL_OUTMODE omode;        /* out style: normal/fragbased */
   int cds_prot_id;          /* 1 if gene identifier is from CDS/protein_id field */
-  DB_STR_ELT *gtfattr;      /* if non-null, these are the wanted gtf/gff attributes */
+  DB_STR_ELT *gtfgeneidattr;      /* if non-null, these are the wanted gtf/gff attributes */
   DBLU_FTKW ufeattype;      /* if we need a user-specified feature */
   DB_STR_ELT *ufeatlist;    /* list of values for ftlist */
   int printnullhits;        /* print lines for non-hitters (-W) */
@@ -208,6 +211,18 @@ va_start(args,fmt);
 (void) vfprintf(stderr,fmt,args);
 va_end(args);
 exit(1);
+}
+
+void err_msg(char *fmt,
+             ...)
+/* write user error message but continue */
+{
+va_list args;
+
+va_start(args,fmt);
+(void) vfprintf(stderr,fmt,args);
+va_end(args);
+fflush(stderr);
 }
 
 void igl_sayusage(FILE *fl,
@@ -291,6 +306,9 @@ if (fp != NULL)
   if (((tbip = db_tblent4udata(fp->infolist,FTQU_gene,NULL)) != NULL) &&
        (tbip->qval != NULL))
     fprintf(fl," gene=%s",tbip->qval);
+  if (((tbip = db_tblent4udata(fp->infolist,FTQU_biotype,NULL)) != NULL) &&
+       (tbip->qval != NULL))
+    fprintf(fl," biotype=%s",tbip->qval);
   fputc('\n',fl);
   tg_putgfffeatrecurs(fl,fp->parentfeat,indent+2);
   }
@@ -334,7 +352,7 @@ switch (rpp->dfmt)
       switch (rpp->dfmt)
         {
         case DBFMT_gtf:
-          ecnt += dbp_parse_gtf_ln(src,&curseq,sline,rpp->ftkw,rpp->ftlist,&rpp->meplist,rpp->gtfattr);
+          ecnt += dbp_parse_gtf_ln(src,&curseq,sline,rpp->ftkw,rpp->ftlist,rpp->wantedtypewlu,&rpp->meplist,rpp->gtfgeneidattr);
           break;
         case DBFMT_gff3:
         default:
@@ -480,9 +498,9 @@ while (fp != NULL)
   {
   if ((wantftlist == NULL) || (db_ptr4felt(wantftlist,fp->featur) != NULL))
     {
-    if ((rpp->pcodingtypes == NULL) ||
-         (((ilstp = db_tblent4udata(fp->infolist,FTQU_biotype,NULL)) != NULL) &&
-           (db_matstrelt(rpp->pcodingtypes,ilstp->qval,strcmp) != NULL)))
+    ilstp = db_tblent4udata(fp->infolist,FTQU_biotype,NULL);
+    if ((rpp->wantedcodingtypes == NULL) ||
+         ((ilstp != NULL) && (db_matstrelt(rpp->wantedcodingtypes,ilstp->qval,strcmp) != NULL)))
       {
       dist = dist3p = igl_sens3pupstreamdist(fp,fp->strctsens,rstart,rstop);
       if (rpp->intrnlfrag > IGL_intrnl_none)
@@ -567,9 +585,9 @@ while (fp != NULL)
   {
   if ((feattype == NULL) || (db_ptr4felt(feattype,fp->featur) != NULL))
     {
-    if ((rpp->pcodingtypes == NULL) ||
+    if ((rpp->wantedcodingtypes == NULL) ||
          (((ilstp = db_tblent4udata(fp->infolist,FTQU_biotype,NULL)) != NULL) &&
-           (db_matstrelt(rpp->pcodingtypes,ilstp->qval,strcmp) != NULL)))
+           (db_matstrelt(rpp->wantedcodingtypes,ilstp->qval,strcmp) != NULL)))
       {
       ft5p = db_5pextnt4feat(fp);
       ft3p = db_3pextnt4feat(fp);
@@ -613,9 +631,9 @@ while (fp != NULL)
   {
   if ((wantftlist == NULL) || (db_ptr4felt(wantftlist,fp->featur) != NULL))
     {
-    if ((rpp->pcodingtypes == NULL) ||
+    if ((rpp->wantedcodingtypes == NULL) ||
          (((ilstp = db_tblent4udata(fp->infolist,FTQU_biotype,NULL)) != NULL) &&
-           (db_matstrelt(rpp->pcodingtypes,ilstp->qval,strcmp) != NULL)))
+           (db_matstrelt(rpp->wantedcodingtypes,ilstp->qval,strcmp) != NULL)))
       {
       dist = igl_absdist2feat(fp,rstart);
       if (dist < proxdist)
@@ -1002,7 +1020,10 @@ switch (rpp->dfmt)
           if (rpp->cds_prot_id)
             (void) db_appnfelt(&feattype,FTKW_CDS);
           else
+            {
             (void) db_appnfelt(&feattype,FTKW_FT_gene);
+	    (void) db_appnfelt(&feattype,FTKW_lncRNA);
+	    }
       else
         (void) db_appnfelt(&feattype,rpp->ufeattype);
       }
@@ -1019,11 +1040,11 @@ switch (rpp->dfmt)
       (void) db_appnfelt(&feattype,rpp->ufeattype);
     break;
   default:
-    if (rpp->gtfattr == NULL)
+    if (rpp->gtfgeneidattr == NULL)
       (void) db_appnfelt(&feattype,FTKW_FT_gene);
     else
       {
-      gtptr = rpp->gtfattr;
+      gtptr = rpp->gtfgeneidattr;
       while (gtptr != NULL)
         {
         if ((gtkw = wlu_chkwrd(rpp->ftkw,gtptr->strval)) != FTKW_unknown)
@@ -1517,6 +1538,132 @@ memfree(tokns);
 return(tcnt);
 }
 
+int igl_chkvalidbiotypelist(WRD_LUSTRCT *validwrds,
+                            DB_STR_ELT **slst,
+                            char *errhdr,
+                            WRD_LUSTRCT **wantlst)
+/* Check *slst entries are in validwrds,
+writing an error message if not (non-fatal).
+Remove any invalid entries.
+Return number of valid words and
+generate *wantlst lookup list */
+{
+DB_STR_ELT *dseptr;
+int scancnt;
+DBP_BIOTYPE biotype;
+
+dseptr = *slst;
+scancnt = 0;
+while (dseptr != NULL)
+  {
+  if ((biotype = wlu_chkwrd(validwrds,dseptr->strval)) == FTKW_unknown)
+    {
+    err_msg("Unknown %s word '%s'\n",((errhdr==NULL)?"":errhdr),dseptr->strval);
+    db_delstrelt(dseptr,slst,NULL);
+    }
+  else
+    {
+    wlu_addwrd(*wantlst,dseptr->strval,biotype,NULL);
+    scancnt++;
+    }
+  dseptr = dseptr->nxtselt;
+  }
+return(scancnt);
+}
+
+int igl_chkbiotypes4fmt(DB_STR_ELT **slst,
+                        DBLU_DBFMT dfmt,
+                        WRD_LUSTRCT **wantlst)
+/* works for seqmonk and gtf formats:
+others default to seqmonk.
+Ensure that astr entries are OK for
+this format, return valid No. */
+{
+WRD_LUSTRCT *okwrds;
+int ret;
+
+okwrds = wlu_getlustrct(WLU_CASEIND,BIOTYPE_unknown);
+switch (dfmt)
+  {
+  case DBFMT_gtf:
+    wlu_addwrd(okwrds,"IG_C_gene",BIOTYPE_IG_C_gene,NULL);
+    wlu_addwrd(okwrds,"IG_C_pseudogene",BIOTYPE_IG_C_pseudogene,NULL);
+    wlu_addwrd(okwrds,"IG_D_gene",BIOTYPE_IG_D_gene,NULL);
+    wlu_addwrd(okwrds,"IG_J_gene",BIOTYPE_IG_J_gene,NULL);
+    wlu_addwrd(okwrds,"IG_J_pseudogene",BIOTYPE_IG_J_pseudogene,NULL);
+    wlu_addwrd(okwrds,"IG_V_gene",BIOTYPE_IG_V_gene,NULL);
+    wlu_addwrd(okwrds,"IG_V_pseudogene",BIOTYPE_IG_V_pseudogene,NULL);
+    wlu_addwrd(okwrds,"IG_pseudogene",BIOTYPE_IG_pseudogene,NULL);
+    wlu_addwrd(okwrds,"Mt_rRNA",BIOTYPE_Mt_rRNA,NULL);
+    wlu_addwrd(okwrds,"Mt_tRNA",BIOTYPE_Mt_tRNA,NULL);
+    wlu_addwrd(okwrds,"TEC",BIOTYPE_TEC,NULL);
+    wlu_addwrd(okwrds,"TR_C_gene",BIOTYPE_TR_C_gene,NULL);
+    wlu_addwrd(okwrds,"TR_D_gene",BIOTYPE_TR_D_gene,NULL);
+    wlu_addwrd(okwrds,"TR_J_gene",BIOTYPE_TR_J_gene,NULL);
+    wlu_addwrd(okwrds,"TR_J_pseudogene",BIOTYPE_TR_J_pseudogene,NULL);
+    wlu_addwrd(okwrds,"TR_V_gene",BIOTYPE_TR_V_gene,NULL);
+    wlu_addwrd(okwrds,"TR_V_pseudogene",BIOTYPE_TR_V_pseudogene,NULL);
+    wlu_addwrd(okwrds,"antisense",BIOTYPE_antisense,NULL);
+    wlu_addwrd(okwrds,"lincRNA",BIOTYPE_lincRNA,NULL);
+    wlu_addwrd(okwrds,"lncRNA",BIOTYPE_lncRNA,NULL);
+    wlu_addwrd(okwrds,"miRNA",BIOTYPE_miRNA,NULL);
+    wlu_addwrd(okwrds,"misc_RNA",BIOTYPE_misc_RNA,NULL);
+    wlu_addwrd(okwrds,"polymorphic_pseudogene",BIOTYPE_polymorphic_pseudogene,NULL);
+    wlu_addwrd(okwrds,"processed_pseudogene",BIOTYPE_processed_pseudogene,NULL);
+    wlu_addwrd(okwrds,"processed_transcript",BIOTYPE_processed_transcript,NULL);
+    wlu_addwrd(okwrds,"protein_coding",BIOTYPE_protein_coding,NULL);
+    wlu_addwrd(okwrds,"pseudogene",BIOTYPE_pseudogene,NULL);
+    wlu_addwrd(okwrds,"rRNA",BIOTYPE_rRNA,NULL);
+    wlu_addwrd(okwrds,"rRNA_pseudogene",BIOTYPE_rRNA_pseudogene,NULL);
+    wlu_addwrd(okwrds,"scRNA",BIOTYPE_scRNA,NULL);
+    wlu_addwrd(okwrds,"sense_intronic",BIOTYPE_sense_intronic,NULL);
+    wlu_addwrd(okwrds,"sense_overlapping",BIOTYPE_sense_overlapping,NULL);
+    wlu_addwrd(okwrds,"snRNA",BIOTYPE_snRNA,NULL);
+    wlu_addwrd(okwrds,"snoRNA",BIOTYPE_snoRNA,NULL);
+    wlu_addwrd(okwrds,"transcribed_processed_pseudogene",BIOTYPE_transcribed_processed_pseudogene,NULL);
+    wlu_addwrd(okwrds,"transcribed_unitary_pseudogene",BIOTYPE_transcribed_unitary_pseudogene,NULL);
+    wlu_addwrd(okwrds,"transcribed_unprocessed_pseudogene",BIOTYPE_transcribed_unprocessed_pseudogene,NULL);
+    wlu_addwrd(okwrds,"translated_processed_pseudogene",BIOTYPE_translated_processed_pseudogene,NULL);
+    wlu_addwrd(okwrds,"translated_unprocessed_pseudogene",BIOTYPE_translated_unprocessed_pseudogene,NULL);
+    wlu_addwrd(okwrds,"unitary_pseudogene",BIOTYPE_unitary_pseudogene,NULL);
+    wlu_addwrd(okwrds,"unprocessed_pseudogene",BIOTYPE_unprocessed_pseudogene,NULL);
+    wlu_addwrd(okwrds,"vaultRNA",BIOTYPE_vaultRNA,NULL);
+    *wantlst = wlu_getlustrct(WLU_CASEIND,BIOTYPE_unknown);
+    ret = igl_chkvalidbiotypelist(okwrds,slst,"GTF gene_type",wantlst);
+    break;
+  case DBFMT_sqmonk:
+  default:
+    wlu_addwrd(okwrds,"Mt_tRNA_pseudogene",BIOTYPE_Mt_tRNA_pseudogene,NULL);
+    wlu_addwrd(okwrds,"TEC",BIOTYPE_TEC,NULL);
+    wlu_addwrd(okwrds,"ambiguous_orf",BIOTYPE_ambiguous_orf,NULL);
+    wlu_addwrd(okwrds,"antisense",BIOTYPE_antisense,NULL);
+    wlu_addwrd(okwrds,"lincRNA",BIOTYPE_lincRNA,NULL);
+    wlu_addwrd(okwrds,"miRNA",BIOTYPE_miRNA,NULL);
+    wlu_addwrd(okwrds,"miRNA_pseudogene",BIOTYPE_miRNA_pseudogene,NULL);
+    wlu_addwrd(okwrds,"misc_RNA",BIOTYPE_misc_RNA,NULL);
+    wlu_addwrd(okwrds,"non_coding",BIOTYPE_non_coding,NULL);
+    wlu_addwrd(okwrds,"nonsense_mediated_decay",BIOTYPE_nonsense_mediated_decay,NULL);
+    wlu_addwrd(okwrds,"polymorphic_pseudogene",BIOTYPE_polymorphic_pseudogene,NULL);
+    wlu_addwrd(okwrds,"processed_transcript",BIOTYPE_processed_transcript,NULL);
+    wlu_addwrd(okwrds,"protein_coding",BIOTYPE_protein_coding,NULL);
+    wlu_addwrd(okwrds,"pseudogene",BIOTYPE_pseudogene,NULL);
+    wlu_addwrd(okwrds,"rRNA",BIOTYPE_rRNA,NULL);
+    wlu_addwrd(okwrds,"rRNA_pseudogene",BIOTYPE_rRNA_pseudogene,NULL);
+    wlu_addwrd(okwrds,"retained_intron",BIOTYPE_retained_intron,NULL);
+    wlu_addwrd(okwrds,"scRNA_pseudogene",BIOTYPE_scRNA_pseudogene,NULL);
+    wlu_addwrd(okwrds,"sense_intronic",BIOTYPE_sense_intronic,NULL);
+    wlu_addwrd(okwrds,"snRNA",BIOTYPE_snRNA,NULL);
+    wlu_addwrd(okwrds,"snRNA_pseudogene",BIOTYPE_snRNA_pseudogene,NULL);
+    wlu_addwrd(okwrds,"snoRNA",BIOTYPE_snoRNA,NULL);
+    wlu_addwrd(okwrds,"snoRNA_pseudogene",BIOTYPE_snoRNA_pseudogene,NULL);
+    wlu_addwrd(okwrds,"tRNA_pseudogene",BIOTYPE_tRNA_pseudogene,NULL);
+    *wantlst = wlu_getlustrct(WLU_CASEIND,BIOTYPE_unknown);
+    ret = igl_chkvalidbiotypelist(okwrds,slst,"SeqMonk biotype",wantlst);
+    break;
+  }    
+wlu_clrlustrct(okwrds);
+return(ret);
+}
 
 int main(int argc,
          char *argv[])
@@ -1557,7 +1704,8 @@ rpp->srccollmt = 9;
 rpp->needcds = rpp->classolap = rpp->seektss =
   rpp->displinfo = rpp->distlimit = rpp->tssdistlmt = rpp->geneexmrna = 0;
 rpp->seekCpGis = IGL_CpG_none;
-rpp->pcodingtypes = NULL;
+rpp->wantedcodingtypes = NULL;
+rpp->wantedtypewlu = NULL;
 rpp->intrnlfrag = IGL_intrnl_none;
 rpp->tss_cpgi_rng = 0;
 rpp->omode = IGL_omod_genebased;
@@ -1565,7 +1713,7 @@ rpp->chridlu = NULL;
 rpp->chrinfoflnam = NULL;
 rpp->chrinfofl = NULL;
 rpp->cds_prot_id = 0;
-rpp->gtfattr = NULL;
+rpp->gtfgeneidattr = NULL;
 rpp->ufeattype = FTKW_unknown;
 rpp->ufeatlist = NULL;
 rpp->tsslist = rpp->cpgilist = NULL;
@@ -1711,13 +1859,13 @@ for (ap = 1; ap < argc; ap++)
         if (++ap > argc)
           err_msg_die("-%c needs biotype string value\n",uopt);
         else
-          (void) igl_chkcommadelstrs(&rpp->pcodingtypes,argv[ap]);
+          (void) igl_chkcommadelstrs(&rpp->wantedcodingtypes,argv[ap]);
         break;
       case 'A':       /* gtf/gff2 wanted attributes */
         if (++ap > argc)
           err_msg_die("-%c needs attribute string value(s)\n",uopt);
         else
-          (void) igl_chkcommadelstrs(&rpp->gtfattr,argv[ap]);
+          (void) igl_chkcommadelstrs(&rpp->gtfgeneidattr,argv[ap]);
         break;
       case 'a':      /* user-specified feature type to override defaults */
         if (++ap > argc)
@@ -1757,10 +1905,10 @@ switch (rpp->dfmt)
     err_msg_die("No valid feature table style set (-e,-g,-F,-T or -Q)\n");
     break;
   case DBFMT_gtf:
-    if (rpp->gtfattr == NULL)
-      (void) igl_chkcommadelstrs(&rpp->gtfattr,"transcript_name,transcript_id,gene_name");
+    if (rpp->gtfgeneidattr == NULL)
+      (void) igl_chkcommadelstrs(&rpp->gtfgeneidattr,"transcript_name,transcript_id,gene_name");
     if (rpp->ufeatlist == NULL)
-      (void) db_scnfeatwrds("exon,CDS,start_codon,stop_codon,transcript",rpp->ftkw,&rpp->ftlist,0);
+      (void) db_scnfeatwrds("exon,CDS,start_codon,stop_codon,transcript,lncRNA",rpp->ftkw,&rpp->ftlist,0);
     else
       {
       sfp = rpp->ufeatlist;
@@ -1773,6 +1921,9 @@ switch (rpp->dfmt)
         sfp = sfp->nxtselt;
         }
       }
+    if (rpp->wantedcodingtypes == NULL)  /* not specified, default to "protein_coding" for gtf */
+      (void) igl_chkcommadelstrs(&rpp->wantedcodingtypes,"protein_coding");
+    (void) igl_chkbiotypes4fmt(&rpp->wantedcodingtypes,rpp->dfmt,&rpp->wantedtypewlu);
     break;
   case DBFMT_embl:
   case DBFMT_genbank:
@@ -1799,6 +1950,7 @@ switch (rpp->dfmt)
       (void) db_scnqulwrds("db_xref,name,biotype",rpp->ftqul,&fep->wquals,0);
       fep = fep->nxtfelt;
       }
+    (void) igl_chkbiotypes4fmt(&rpp->wantedcodingtypes,rpp->dfmt,&rpp->wantedtypewlu);
     break;
   case DBFMT_gff3:
     (void) db_scnfeatwrds("gene,mRNA,CDS",rpp->ftkw,&rpp->ftlist,0);
