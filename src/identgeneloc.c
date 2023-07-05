@@ -77,8 +77,10 @@ ChrNo. start stop... */
 /* allow multiple user feature types: Mar-2021 */
 /* #define PROG_VERS 0.24 */
 /* allow Genbank gene_ids to be found + variant Genbank LOCUS lines: Feb-2022 */
-#define PROG_VERS 0.25
+/* #define PROG_VERS 0.25 */
 /* allow biotypes for GTF feature data: Jun-2023 */
+#define PROG_VERS 0.26
+/* append biotype to lines for SeqMonk and GTF annotations: Jul-2023 */
 
 #define DEF_SRCBUFLEN 2048
 
@@ -679,6 +681,8 @@ switch (rpp->omode)
               rpp->outtokdelmtr);
     if (rpp->displinfo)
       fprintf(dst,"%sXref...",rpp->outtokdelmtr);
+    if ((rpp->dfmt == DBFMT_gtf) || (rpp->dfmt == DBFMT_sqmonk))
+      fprintf(dst,"%sBiotype",rpp->outtokdelmtr);
     fputc('\n',dst);
     break;
   }
@@ -1289,6 +1293,10 @@ while (fgets(lbuf,rpp->srcbuflen,src) != NULL)
                   infp = db_tblent4udata(infp->nxtielt,FTQU_product,NULL);
                   }
                 }
+              if (((rpp->dfmt == DBFMT_gtf) || (rpp->dfmt == DBFMT_sqmonk)) &&
+	        (infp = db_tblent4udata(proxftp->infolist,FTQU_biotype,NULL)))
+/* want to put biotype output at end of line */
+	       fprintf(dst,"%s%s",rpp->outtokdelmtr,infp->qval);
               fputc('\n',dst);
               }
             else
