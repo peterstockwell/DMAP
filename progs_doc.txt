@@ -7,7 +7,7 @@ Dunedin, New Zealand.
 
 peter.stockwell@otago.ac.nz
 
-22-Mar-2023
+15-May-2024
 ----------------------------------------------------------------------
 
 rmapbsbed2cpg
@@ -951,20 +951,20 @@ these have been implemented: some may never be. Also, the -z option
 for no X,Y chromosomes of versions 1.55 and prior has been replaced
 with -Y and -z/-Z is now used to control bam/sam file input.
 
-./diffmeth v1.72: make MspI (or other) fragment or fixed bins, note meth/unmeth positions for individuals
+./diffmeth v1.83: differential methylation analysis for RRBS & WGBS
 Options:
      -r <posfile> read <posfile> as set of chr posit strand/meth (multiples allowed)
-     -R <samfilebamfile> read info from .sam/.bam file (multiples allowed)
+     -R <samorbamfile> read info from .sam/.bam file (multiples allowed)
      -s <posfile> as for -r, second group data
-     -S <samfile> as for -R, second group data
+     -S <samorbamfile> as for -R, second group data
      -z/-Z switch between sam (-Z) & bam (-z) for -R/-S input - positional (def=-Z)
      -G <chr_info_file> file of chromosome IDs and filenames
  or  -g <genomehead> dir and file string to locate genomic seq files by adding n.fa (obsolete, use -G method)
      -p <j,k> pairwise scan meth variance of RR frags j..k (Li, et al. (2010) PLOSBiology,11,e1000533)
      -P <j,k> pairwise scan force Fisher's exact frags j..k (Li, et al. (2010) PLOSBiology,11,e1000533)
-     -x <j,k> as -s but do Chi Square if possible, else pairwise FE
+     -x <j,k> do Chi Square if possible, else pairwise FE
      -X <j,k> as -x but force Chi Square for valid count fragments
-     -q <j,k> as -a but choose lowest pr of Fisher's Exact, or Chi if valid
+     -q <j,k> as -x but choose lower Pr of Fisher's Exact, or Chi if valid
      -Q <j,k> as -q but show all paired FE Prs, or Chi if valid
      -a/-A/-B <j,k> ANOVA on %meth for groups; -A->show >meth group & sample counts; -B->more detail
      -e/-E <j,k> list each CpG for bins; -E=> only nonzero bins
@@ -972,7 +972,7 @@ Options:
      -l/-L <j,k> list bins (-L=>only nonzero bins)
      -m treat complementary Cs of CpGs as separate (def=don't)
      -f <fold> require fold methylation difference (def=don't)
-     -t <threshold> ignore bins with fewer than threshold counts (def=1)
+     -t <threshold> ignore CpGs with fewer than threshold counts (def=1)
      -T <hitthreshold> ignore bins with less than hitthreshold/CpG counts (def=0.0)
      -F <cntscrit> No. CpGs that must meet -t count criterion (def=all)
      -u <maxhitspercpg> ignore bins with more counts/CpG (def=0.0=ignore)
@@ -988,10 +988,12 @@ Options:
      -j join adjacent RRBS fragments (def=don't)
      -K <clustersize> cluster bins to clustersize groups for quick lookup (def=1000)
      -H <Chdr> use Chdr as prefix for each chromosome (def=none)
-     -N for 3' SAM reads map leading CpG to prev fragment (def=don't)
-     -W <binwidth> make fixed width bins (def=MspI by size)
+     -N for 3' SAM/BAM RRBS reads map leading CpG to prev fragment (def=don't)
+     -W <binwidth> make fixed width bins (def=rest. enz by size)
+     -y <binfilename> read bin info from binfilename (chr start stop) (def=rest. enz)
      -n <restrictionfile> - use sites in <restrictionfile>, def=MspI
      -J include non-CpG methylation
+     -o <outfile> - write output to <outfile> (def=stdout)
 
 To explain some of these options:
 
@@ -1241,8 +1243,8 @@ nearest the gene start.
 
 Options:
 
-./identgeneloc v0.13: proximal genes for chromosomal position table for a feature table
-Usage: -e|g|E|F|T|Q {-f <ftfile> | -p <ftprefix> [-s <ftsuffix>] | -G <infofile> -r <chr_pos_file>
+./identgeneloc v0.27: proximal genes for chromosomal position table for a feature table
+Usage: -e|g|E|F|T|Q {-f <ftfile> | -p <ftprefix> [-s <ftsuffix>] | -G <infofile>} -r <chr_pos_file>
 where: -e: EMBL feature format (New)
        -g: Genbank feature format
        -F: GFF3 feature format
@@ -1258,10 +1260,12 @@ where: -e: EMBL feature format (New)
        -z: don't use X,Y chromosome names for two highest
        -c <userchrno>: confine activity to chromosome <userchrno>
        -l list feature data, don't process chromosome positions (def=do)
-       -L list chromosome ids only to stdout (def=find proximal genes)
+       -L list chromosome ids only (def=find proximal genes)
        -C <srccollmt> include <srccollmt> columns of chr/pos file (def=9,min=3)
        -P require corresponding Protein CDS for any gene (def=don't)
        -B <type> restrict to /biotype="<type>" gene/mRNA features (SeqMonk features), multiples OK, (def=don't)
+       -A <attribute> choose these attributes for gtf/gff2 files, multiples OK
+       -a <FeatureType> specify the feature type: override defaults, multiples OK
        -m use mRNA to define gene/position (def=use 'gene')
        -I allow fragments internal to genes (def=don't)
        -i as for -I, but identify fragment relationships with exon boundaries
@@ -1276,7 +1280,8 @@ where: -e: EMBL feature format (New)
        -n show nearest TSS/CpGI to fragment rather than gene
        -N count qualifying genes in fragment range
        -b <buflen> allow input lines up to <buflen> (def=2048)
-output to stdout
+       -W print lines for non-hitters (def=don't)
+       -o <outfile> - write output to <outfile> (def=stdout)
 
 Explanations:
 
