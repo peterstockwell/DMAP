@@ -64,7 +64,7 @@ exit(1);
 void say_usage(FILE *fl,
                char *pnam)
 {
-fprintf(fl,"%s v%.2f: make MspI (or other) fragment or fixed bins, note meth/unmeth positions for individuals\n",
+fprintf(fl,"%s v%.2f: differential methylation analysis for RRBS & WGBS\n",
           pnam,PROG_VERSION);
 fputs("Options:\n",fl);
 fputs("     -r <posfile> read <posfile> as set of chr posit strand/meth (multiples allowed)\n",fl);
@@ -126,6 +126,7 @@ fputs("     -y <binfilename> read bin info from binfilename (chr start stop) (de
 fputs("     -n <restrictionfile> - use sites in <restrictionfile>, def=MspI\n",fl);
 /* fputs("      -B read source in 'chr pos strand C T' form\n",fl); */
 fputs("     -J include non-CpG methylation\n",fl);
+fputs("     -o <outfile> - write output to <outfile> (def=stdout)\n",fl);
 }
 
 DM_FNAM_ELT *dm_appndfnam(DM_FNAM_ELT **fnmlst,
@@ -834,11 +835,11 @@ int dm_prntcpginfo(DM_RUNPARS *rpp,
                    int sqpos,
                    int methstat,
                    int fst3pcpg)
-/* simply write info to stdout in conventional form */
+/* simply write info to output in conventional form */
 {
-fprintf(stdout,"%s%s%d%s%s",wlu_intval2str(rpp->chridlu,chrno),
+fprintf(rpp->outfile,"%s%s%d%s%s",wlu_intval2str(rpp->chridlu,chrno),
                   rpp->listdelmtr,sqpos,rpp->listdelmtr,(methstat?"+":"-"));
-fputc('\n',stdout);
+fputc('\n',rpp->outfile);
 return(1);
 }
 
@@ -1396,7 +1397,7 @@ for (chno = 0; chno < rpp->maxchrno; chno++)
           {
           dpep = (FS_DATPRELT *) frp->action;
           if (debuglevel > RBC_dbg_none)
-             fprintf(stdout,"Match: %s @ %d (prev=%d)\n",dpep->dstrng,cpos,prvcpgpos);
+             fprintf(rpp->outfile,"Match: %s @ %d (prev=%d)\n",dpep->dstrng,cpos,prvcpgpos);
           switch (dpep->ldstr)
             {
             case 2: /* CpG */
@@ -3815,6 +3816,7 @@ rpars.allcs = 0;
 rpars.groupidlist = NULL;
 rpars.binstyle = DM_bin_restenz;
 rpars.binfile = NULL;
+rpars.outfile = stdout;
 for (ap = 1; ap < argc; ap++)
   {
 /*  fprintf(stdout,"argv[%d]=\"%s\"\n",ap,argv[ap]); */
@@ -4196,8 +4198,17 @@ for (ap = 1; ap < argc; ap++)
           else
             rpars.binstyle = DM_bin_userlist;
         break;
+      case 'o':         /* change output file */
+        if (++ap >= argc)
+          err_msg_die("-%c needs output file name\n",op);
+        else
+          {
+          if ((rpars.outfile = fopen(argv[ap],"w")) == NULL)
+            err_msg_die("Can't open output file '%s'\n",argv[ap]);
+          }
+        break;
       case 'h':
-        say_usage(stdout,argv[0]);
+        say_usage(rpars.outfile,argv[0]);
         exit(0);
         break;
       default:
@@ -4278,7 +4289,7 @@ if (rpars.maxchrno > 0)
     (void) dm_readbinfile(rpars.binfile,&rpars);
   chrcnt = dm_redrepgenomsqs(&rpars,cpgfsmp);
   if (debuglevel > RBC_dbg_none)
-    fprintf(stdout,"%d chromosomes read\n",chrcnt);
+    fprintf(rpars.outfile,"%d chromosomes read\n",chrcnt);
   if (amlgmate)
     (void) bc_amlgmatelocpgbins(rpars.chrbininfo,rpars.maxchrno,minfrag,maxfrag,
                                   rpars.mincpgs);
@@ -4347,7 +4358,7 @@ if (rpars.maxchrno > 0)
       break;
     case dm_out_list:
     case dm_out_listnz:
-      dm_listoutdata(stdout,&rpars);
+      dm_listoutdata(rpars.outfile,&rpars);
       break;
     case dm_out_anova:
     case dm_out_anova_gtr:     /* need to allocate storage for structures */
@@ -4358,8 +4369,8 @@ if (rpars.maxchrno > 0)
       rpars.anova_dat->sx = (double *) getmemory(sizeof(double)*rpars.anova_dat->maxgroup,"AnovaSx");
       rpars.anova_dat->grpcnts = (int *) getmemory(sizeof(int)*rpars.anova_dat->maxgroup,"AnovaGrpCnts");
     default:
-      dm_headdmethout(stdout,&rpars);
-      dm_scanallchrombins(stdout,&rpars);
+      dm_headdmethout(rpars.outfile,&rpars);
+      dm_scanallchrombins(rpars.outfile,&rpars);
       break;
     }
   exit(0);

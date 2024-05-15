@@ -1,6 +1,8 @@
 /* diffmeth.h: defs for diffmeth count-binning stuff */
 
-#define PROG_VERSION 1.82
+#define PROG_VERSION 1.83
+/* -o option for user output file: May-2024 */
+/* #define PROG_VERSION 1.82 */
 /* count CpG details for WGBS: Nov-2022 */
 /* #define PROG_VERSION 1.81 */
 /* correct WGBS count check: Nov-2022 */
@@ -302,6 +304,7 @@ typedef struct DM_runpars
   DM_SITES *sitelist;
   int allcs;            /* 1 if we want all Cs ie non-CpG & CpG methylation */
   char **groupidlist;   /* to contain a list of group ids */
+  FILE *outfile;        /* user output file, defaults to stdout */
   }
 DM_RUNPARS;
 
