@@ -81,8 +81,10 @@ ChrNo. start stop... */
 /* allow biotypes for GTF feature data: Jun-2023 */
 /* #define PROG_VERS 0.26 */
 /* append biotype to lines for SeqMonk and GTF annotations: Jul-2023 */
-#define PROG_VERS 0.27
+/* #define PROG_VERS 0.27 */
 /* -o output file option: May-2024 */
+#define PROG_VERS 0.28
+/* correct header line field count anomaly for header lines: Jan-2025 */
 
 #define DEF_SRCBUFLEN 2048
 
@@ -659,13 +661,6 @@ void igl_headerappend(FILE *dst,
 {
 int fp;
 
-/* fprintf(dst,"#Chr%sStart%sEnd",rpp->outtokdelmtr,rpp->outtokdelmtr);
-for (fp = 4; fp <= rpp->srccollmt; fp++)
-  {
-  fputs(rpp->outtokdelmtr,dst);
-  fputc('-',dst);
-  }
-*/
 switch (rpp->omode)
   {
   case IGL_omod_genecnt:
@@ -1013,7 +1008,6 @@ DBLU_FTKW gtkw;
 
 lbuf = (char *) getmemory(rpp->srcbuflen+1,"srclinebuf");
 tokns = (char **) getmemory(rpp->srccollmt*sizeof(char *),"tokenlist");
-/* igl_headoutput(dst,rpp); */
 feattype = NULL;
 switch (rpp->dfmt)
   {
@@ -1065,22 +1059,39 @@ while (fgets(lbuf,rpp->srcbuflen,src) != NULL)
   {
   igl_cleansrcline(lbuf);
   rpp->srclno++;
-  if (*lbuf != '#')
+/*   if (*lbuf != '#') */
+  lcpy = oricpy = bas_strdup(lbuf);
+  tcnt = 0;
+  for (lp = tokns; (*lp = strsep(&lcpy,rpp->chrtokdelmtr)) != NULL;)
     {
-    lcpy = oricpy = bas_strdup(lbuf);
-    tcnt = 0;
-    for (lp = tokns; (*lp = strsep(&lcpy,rpp->chrtokdelmtr)) != NULL;)
+    if (**lp != '\0')
       {
-      if (**lp != '\0')
-        {
-        tcnt++;
-        if (++lp >= (tokns+rpp->srccollmt))
-          break;
-        }
+      tcnt++;
+      if (++lp >= (tokns+rpp->srccollmt))
+        break;
       }
+    }
 /* check for adequate no of tokens: avoid file corruption issues */
-    if (tcnt < 3)
-      err_msg_die("Position file corruption at line %d: inadequate tokens in line\n",rpp->srclno);
+  if (tcnt < 3)
+    err_msg_die("Position file corruption at line %d: inadequate tokens in line\n",rpp->srclno);
+  if (*lbuf == '#')  /* comment or header line */
+    {
+    for (tpt = 0; tpt < rpp->srccollmt; tpt++)
+      {
+      if (tpt < tcnt)
+        fputs(*(tokns+tpt),dst);
+      else
+        fputc('-',dst);
+      if (tpt < rpp->srccollmt)
+        fputs(rpp->outtokdelmtr,dst);
+      }
+    if (rpp->srclno == 1)  /* is header line */
+      igl_headerappend(dst,rpp);
+    else
+      fputc('\n',dst);
+    }
+  else
+    {
     chrno = wlu_chkwrd(rpp->chridlu,*tokns);
     if ((rpp->uchrno <= 0) || ((rpp->uchrno-1) == chrno))
       {
@@ -1322,16 +1333,8 @@ while (fgets(lbuf,rpp->srcbuflen,src) != NULL)
           }
         }
       }
-    memfree(oricpy);
     }
-  else  /* line starts '#' */
-    {
-    fputs(lbuf,dst);
-    if (rpp->srclno ==1)
-      igl_headerappend(dst,rpp);
-    else
-      fputc('\n',dst);
-    }
+  memfree(oricpy);
   }
 db_killfeltlst(&feattype);
 memfree(lbuf);
