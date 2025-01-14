@@ -83,8 +83,10 @@ ChrNo. start stop... */
 /* append biotype to lines for SeqMonk and GTF annotations: Jul-2023 */
 /* #define PROG_VERS 0.27 */
 /* -o output file option: May-2024 */
-#define PROG_VERS 0.28
-/* correct header line field count anomaly for header lines: Jan-2025 */
+/* #define PROG_VERS 0.28 */
+/* correct header line field count anomaly for header lines: 14-Jan-2025 */
+#define PROG_VERS 0.29
+/* tidy previous modification: 15-Jan-2025 */
 
 #define DEF_SRCBUFLEN 2048
 
@@ -1082,7 +1084,7 @@ while (fgets(lbuf,rpp->srcbuflen,src) != NULL)
         fputs(*(tokns+tpt),dst);
       else
         fputc('-',dst);
-      if (tpt < rpp->srccollmt)
+      if (tpt != (rpp->srccollmt-1))
         fputs(rpp->outtokdelmtr,dst);
       }
     if (rpp->srclno == 1)  /* is header line */
