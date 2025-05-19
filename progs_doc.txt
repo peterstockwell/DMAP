@@ -7,7 +7,7 @@ Dunedin, New Zealand.
 
 peter.stockwell@otago.ac.nz
 
-15-May-2024
+19-May-2025
 ----------------------------------------------------------------------
 
 rmapbsbed2cpg
@@ -17,6 +17,7 @@ cleanadaptors
 diffmeth
 identgeneloc
 
+diffmeth_samples_to_tsv.sh
 illum2fasta.awk
 mk4to1lines.awk
 bismmethex2list.awk
@@ -738,6 +739,24 @@ Trim adaptors from compressed to uncompressed fastq:
 
 cleanadaptors -I contam.fa -z -F src_r1.fastq.gz -G src_r2.fastq.gz \
   -Z -o dst_r1.fastq -O dst_r2.fastq
+
+----------------------------------------------------------------------
+diffmeth_samples_to_tsv.sh
+
+a bash script for taking the diffmeth -B output and splitting the
+final colum of individual sample methylation proportions into a
+tab-delimited file.  The script should be executable and is run with
+commands like:
+
+./diffmeth_samples_to_tsv.sh <diffmeth_output.txt>
+
+where <diffmeth_output.txt> is the file generated with diffmeth -B.
+An optional additional parameter will be used as the output file, but
+by default this is to stdout.
+
+Running the script will generate two awk scripts in the current
+directory (anovasmplstostdout.awk & dmeth_to_cols.awk) which can be
+deleted.
 
 ----------------------------------------------------------------------
 illum2fasta.awk
