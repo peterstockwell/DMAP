@@ -80,7 +80,7 @@ cat << 'SCRIPT2' > dmeth_to_cols.awk
 # dmeth_to_cols.awk: convert diffmeth output to tab delimited text,
 # especially the last column of methylation proportions
 #
-# Version 1.1: to manage multi-group ANOVA runs
+# Version 1.2: to manage multi-group ANOVA runs
 # Peter Stockwell May-2025
 
 BEGIN{FS = "\t";
@@ -92,9 +92,8 @@ cmd = sprintf("awk -f anovasmplstostdout.awk %s",FILENAME);
 while (cmd | getline smplid > 0)
   smpllist[++smplno] = smplid;
 close(cmd);
-
-# look for number of groups: by scanning for R & S or just R in first char position,
-# and further for 3 letter sample IDs (e.g. R1a,R2a, etc.) which indicate > 2 groups.
+# look for number of groups: by checking max ID length
+# since IDs like R1a,R2a, etc. indicate > 2 groups.
 maxidlen = 0;
 for (i = 1; i<= smplno; i++)
   {
@@ -103,8 +102,11 @@ for (i = 1; i<= smplno; i++)
     maxidlen = idlen;
   }
 nogroups = arraylength(chararray);
-if ((nogroups < 2) || (maxidlen > 2))
+if (maxidlen == 2)
+  baseidlen = 1;     # must have R1, R2, S1, S2 type IDs 
+else
   {
+  baseidlen = 2;     # must have R1a, R2s, R3a type IDs 
   for (aelmt in chararray)
     delete chararray[aelmt];
   for (i = 1; i <= smplno; i++)
@@ -113,11 +115,11 @@ if ((nogroups < 2) || (maxidlen > 2))
     }
   nogroups = arraylength(chararray);
   }
-# generate maxidlen-1 letter array of IDs
+# generate baseidlen letter array of IDs
 gno = 0;
 prv2id = "";
 for (i = 1; i <= smplno; i++)
-  if ((new2id = substr(smpllist[i],1,maxidlen-1)) != prv2id)
+  if ((new2id = substr(smpllist[i],1,imin(baseidlen,2))) != prv2id)
     {
     id2letter[++gno] = new2id;
     prv2id = new2id;
@@ -139,10 +141,14 @@ for (i = 1; i <= nogroups; i++)
 commatogrplist(snf[1]);
 for (i = 1; i<= nogroups; i++)
   {
-  if (substr(grpprop[i],1,maxidlen-1) == id2letter[i])
+  if (substr(grpprop[i],1,baseidlen) == substr(id2letter[i],1,baseidlen))
+    {
     printf("\t%s",grpprop[i]);
+    }
   else
+    {
     printf("\t-");
+    }
   }
 for (i = 1; i <= smplno; i++)
   smplstr[smpllist[i]] = "";
@@ -165,8 +171,10 @@ for (j = 1; j<= ncs; j++)
   {
   split(css[j],scss,"=");
   for (gc = 1; gc <= nogroups; gc++)
-    if (id2letter[gc] == scss[1])
+    {
+    if (substr(id2letter[gc],1,baseidlen) == substr(scss[1],1,baseidlen))
       grpprop[gc] = css[j];
+    }
   }
 }
 
@@ -223,6 +231,24 @@ for (gno = 1; gno <= nogroups; gno++)
   if (id2letter[gno] == substr(qid,1,2))
     return(gno);
 return 0;
+}
+
+function imin(a,b)
+# return min integer value of a & b
+{
+if (a <= b)
+  return a;
+else
+  return b;
+}
+
+function imax(a,b)
+# return max integer value of a & b
+{
+if (a >= b)
+  return a;
+else
+  return b;
 }
 SCRIPT2
 
