@@ -80,14 +80,15 @@ cat << 'SCRIPT2' > dmeth_to_cols.awk
 # dmeth_to_cols.awk: convert diffmeth output to tab delimited text,
 # especially the last column of methylation proportions
 #
-# Version 1.2: to manage multi-group ANOVA runs
+# Version 1.3: to manage multi-group ANOVA runs
 # Peter Stockwell May-2025
 
 BEGIN{FS = "\t";
 smplno = 0;
 }
 
-NR==1{printf("%s",$0);
+NR==1{for (i = 1; i< NF-1; i++)
+  printf("%s\t",$i);
 cmd = sprintf("awk -f anovasmplstostdout.awk %s",FILENAME);
 while (cmd | getline smplid > 0)
   smpllist[++smplno] = smplid;
@@ -125,15 +126,25 @@ for (i = 1; i <= smplno; i++)
     prv2id = new2id;
     grpprop[gno] = "";
     }
-for (i = 2; i <= nogroups; i++)
-  printf("\t+");
+# separate out group counts
+for (i = 1; i <= nogroups; i++)
+  printf("Counts_%s\t",id2letter[i]);
+# separate out group meth proportions
+for (i = 1; i <= nogroups; i++)
+  printf("PropMeth_%s\t",id2letter[i]);
 for (i = 1; i <= smplno; i++)
-  printf("\t%s",smpllist[i]);
+  printf("%s%s",(i==1?"":"\t"),smpllist[i]);
 printf("\n");
 }
 
-NR>1{for (i=1; i<NF; i++)
-       printf("%s%s",$i,(i<(NF-1)?"\t":""));
+NR>1{for (i=1; i < NF - 1; i++)
+       printf("%s%s",$i,(i<(NF-2)?"\t":""));
+nsnm1f = split($(NF-1),snm1f,",");
+for (i = 1; i <= nsnm1f; i++)
+  {
+  split(snm1f[i],ssnm1f,"=");
+  printf("\t%s",ssnm1f[2]);
+  }
 nsnf = split($NF,snf,";")
 # manage first part of overall group totals, 1st clear smplstr
 for (i = 1; i <= nogroups; i++)
@@ -143,12 +154,11 @@ for (i = 1; i<= nogroups; i++)
   {
   if (substr(grpprop[i],1,baseidlen) == substr(id2letter[i],1,baseidlen))
     {
-    printf("\t%s",grpprop[i]);
+    split(grpprop[i],sgrppropi,"=")
+    printf("\t%s",sgrppropi[2]);
     }
   else
-    {
     printf("\t-");
-    }
   }
 for (i = 1; i <= smplno; i++)
   smplstr[smpllist[i]] = "";
@@ -156,7 +166,10 @@ for (k = 2; k <= nsnf; k++)
   commatosmpllist(snf[k]);
 for (i = 1; i <= smplno; i++)
   if (smplstr[smpllist[i]] != "")
-    printf("\t%s",smplstr[smpllist[i]]);
+    {
+    split(smplstr[smpllist[i]],ssmplstrlsti,"=");
+    printf("\t%s",ssmplstrlsti[2]);
+    }
   else
     printf("\t-");
 printf("\n");
@@ -237,15 +250,6 @@ function imin(a,b)
 # return min integer value of a & b
 {
 if (a <= b)
-  return a;
-else
-  return b;
-}
-
-function imax(a,b)
-# return max integer value of a & b
-{
-if (a >= b)
   return a;
 else
   return b;
