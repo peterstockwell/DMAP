@@ -85,8 +85,11 @@ ChrNo. start stop... */
 /* -o output file option: May-2024 */
 /* #define PROG_VERS 0.28 */
 /* correct header line field count anomaly for header lines: 14-Jan-2025 */
-#define PROG_VERS 0.29
+/* #define PROG_VERS 0.29 */
 /* tidy previous modification: 15-Jan-2025 */
+#define PROG_VERS 0.30
+/* actually implement -b input buffer length option: 25-Sep-2025 */
+
 
 #define DEF_SRCBUFLEN 2048
 
@@ -1910,6 +1913,13 @@ for (ap = 1; ap < argc; ap++)
           if ((rpp->outfile = fopen(argv[ap],"w")) == NULL)
             err_msg_die("Can't open output file '%s'\n",argv[ap]);
           }
+        break;
+      case 'b':      /* src file bufferlenGth */
+        if (++ap > argc)
+          err_msg_die("-%c needs buffer length value\n",uopt);
+        else
+          if ((rpp->srcbuflen = (int) strtol(argv[ap],NULL,10)) < DEF_SRCBUFLEN)
+            err_msg("-b value less than default\n",DEF_SRCBUFLEN);
         break;
       case 'h':
         igl_sayusage(rpp->outfile,argv[0]);
