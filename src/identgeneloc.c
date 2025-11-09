@@ -87,9 +87,10 @@ ChrNo. start stop... */
 /* correct header line field count anomaly for header lines: 14-Jan-2025 */
 /* #define PROG_VERS 0.29 */
 /* tidy previous modification: 15-Jan-2025 */
-#define PROG_VERS 0.30
+/* #define PROG_VERS 0.30 */
 /* actually implement -b input buffer length option: 25-Sep-2025 */
-
+#define PROG_VERS 0.31
+/* allow extra length for input line buffer: 7-Nov-2025 */
 
 #define DEF_SRCBUFLEN 2048
 
@@ -1011,7 +1012,8 @@ int infocnt;
 DB_STR_ELT *gtptr;
 DBLU_FTKW gtkw;
 
-lbuf = (char *) getmemory(rpp->srcbuflen+1,"srclinebuf");
+/* allow some extra length to encompass terminal '\n' */
+lbuf = (char *) getmemory(rpp->srcbuflen+8,"srclinebuf");
 tokns = (char **) getmemory(rpp->srccollmt*sizeof(char *),"tokenlist");
 feattype = NULL;
 switch (rpp->dfmt)
@@ -1060,7 +1062,7 @@ switch (rpp->dfmt)
       }
     break;
   }
-while (fgets(lbuf,rpp->srcbuflen,src) != NULL)
+while (fgets(lbuf,(rpp->srcbuflen+7),src) != NULL)
   {
   igl_cleansrcline(lbuf);
   rpp->srclno++;
@@ -1918,8 +1920,7 @@ for (ap = 1; ap < argc; ap++)
         if (++ap > argc)
           err_msg_die("-%c needs buffer length value\n",uopt);
         else
-          if ((rpp->srcbuflen = (int) strtol(argv[ap],NULL,10)) < DEF_SRCBUFLEN)
-            err_msg("-b value less than default\n",DEF_SRCBUFLEN);
+          rpp->srcbuflen = (int) strtol(argv[ap],NULL,10);
         break;
       case 'h':
         igl_sayusage(rpp->outfile,argv[0]);
