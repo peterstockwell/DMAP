@@ -89,8 +89,10 @@ ChrNo. start stop... */
 /* tidy previous modification: 15-Jan-2025 */
 /* #define PROG_VERS 0.30 */
 /* actually implement -b input buffer length option: 25-Sep-2025 */
-#define PROG_VERS 0.31
+/* #define PROG_VERS 0.31 */
 /* allow extra length for input line buffer: 7-Nov-2025 */
+#define PROG_VERS 0.32
+/* correct gtf/gff3 srcbuflen issue: 6-Jan-2026 */
 
 #define DEF_SRCBUFLEN 2048
 
