@@ -263,7 +263,7 @@ fputs("       -L list chromosome ids only (def=find proximal genes)\n",fl);
 fputs("       -C <srccollmt> include <srccollmt> columns of chr/pos file (def=9,min=3)\n",fl);
 fputs("       -P require corresponding Protein CDS for any gene (def=don't)\n",fl);
 fputs("       -B <type> restrict to /biotype=\"<type>\" gene/mRNA features (SeqMonk features), multiples OK, (def=don't)\n",fl);
-fputs("       -A <attribute> choose these attributes for gtf/gff2 files, multiples OK\n",fl);
+fputs("       -A <attribute> choose these attributes for gtf/gff3 files, multiples OK\n",fl);
 fputs("       -a <FeatureType> specify the feature type: override defaults, multiples OK\n",fl);
 fputs("       -m use mRNA to define gene/position (def=use 'gene')\n",fl);
 fputs("       -I allow fragments internal to genes (def=don't)\n",fl);
@@ -357,9 +357,9 @@ switch (rpp->dfmt)
   {
   case DBFMT_gtf:
   case DBFMT_gff3:
-    sline = (char *) getmemory(rpp->srcbuflen+1,"scanline");
+    sline = (char *) getmemory(rpp->srcbuflen+8,"scanline");
     curseq = NULL;
-    while (fgets(sline,rpp->srcbuflen,src) != NULL)
+    while (fgets(sline,rpp->srcbuflen+7,src) != NULL)
       {
       igl_cleansrcline(sline);
       switch (rpp->dfmt)
@@ -2095,7 +2095,7 @@ if (igl_maknamsnparsftfls(rpp) > 0)
     case IGL_findproximal:
       if (src == NULL)
         err_msg_die("proximal gene finding needs CpG position info\n");
-      else
+     else
         igl_procchrposfile(src,rpp->outfile,rpp);
       break;
     }
