@@ -6913,7 +6913,7 @@ while (tpt < ntokns)
     if (wlu_chkwrd(entftkwds,dequotebiotypestr(tokens[tpt+1])) != FTKW_unknown)
       return(tpt+1);
     }
-  tpt += 2;
+  tpt++;
   }
 return(0);
 }
@@ -6991,7 +6991,8 @@ if (*ln != '#')
   thisfeat = wlu_chkwrd(eltp->me_entstrptr->fkwlu,tokens[2]);
   /* do we want this sort of feature?? */
   eltp->me_entstrptr->nseen++;
-  if ((gtf_attr_mat_no = db_gtf_attr_match(tokens,tcnt,wantedgtypes,ftwrds,"gene_type")) > 0)
+  if (((gtf_attr_mat_no = db_gtf_attr_match(tokens,tcnt,wantedgtypes,ftwrds,"gene_type")) > 0) ||
+       ((gtf_attr_mat_no = db_gtf_attr_match(tokens,tcnt,wantedgtypes,ftwrds,"gene_biotype")) > 0))  /* T2T gtf uses this form of attribute */
     ftqual = FTQU_biotype;
   else
     ftqual = FTQU_unknown;
@@ -7007,7 +7008,7 @@ if (*ln != '#')
         tpt = tcnt;
         }
       else
-        tpt += 2;
+        tpt++;
     if (thisid != NULL)
       {
       if (((firstidfeatp = (DB_FEATSTRCT *) wlu_chkwrdptr(eltp->genids,thisid)) == NULL) ||
