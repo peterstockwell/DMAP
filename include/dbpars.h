@@ -1,6 +1,8 @@
 /* dbpars.h: header datatypes and declarations for C db parsing routines */
 
-#define DBLUVERSION 5.38
+#define DBLUVERSION 5.39
+/* T2T gtf modifications: Jan-2026 */
+/* #define DBLUVERSION 5.38 */
 /* corrections for Genbank 'LOCUS' lines, varied spacing; Feb-2022 */
 /* #define DBLUVERSION 5.37 */
 /* put seg_append_ok flag on DB_FEATSTRCT to permit incremental segment addition: Mar-2021 */
