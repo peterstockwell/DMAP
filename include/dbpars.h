@@ -1,6 +1,8 @@
 /* dbpars.h: header datatypes and declarations for C db parsing routines */
 
-#define DBLUVERSION 5.39
+#define DBLUVERSION 5.40
+/* revise gtf line parsing for attributes: 12-Jan-2026 */
+/* #define DBLUVERSION 5.39 */
 /* T2T gtf modifications: Jan-2026 */
 /* #define DBLUVERSION 5.38 */
 /* corrections for Genbank 'LOCUS' lines, varied spacing; Feb-2022 */
@@ -76,7 +78,7 @@
 #define DBLU_NGNBLENFLDSTRT 30 */
 #define GFF3TOKENCNT 9
 #define GTFTOKENCNT 10
-#define GTFMAXTOKCNT 256     /* arbitrary - to manage lots of tabbed attribute values */
+#define GTFMAXATTRCNT 256     /* arbitrary - to manage lots of tabbed attribute values */
 #define GTFMAXQUAL 32
 #define MAX_SWFTTOKENS 64   /* arbitrary, really */
 
