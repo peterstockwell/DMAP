@@ -1581,7 +1581,7 @@ dseptr = *slst;
 scancnt = 0;
 while (dseptr != NULL)
   {
-  if ((biotype = wlu_chkwrd(validwrds,dseptr->strval)) == FTKW_unknown)
+  if ((biotype = wlu_chkwrd(validwrds,dseptr->strval)) == BIOTYPE_unknown)
     {
     err_msg("Unknown %s word '%s'\n",((errhdr==NULL)?"":errhdr),dseptr->strval);
     db_delstrelt(dseptr,slst,NULL);
