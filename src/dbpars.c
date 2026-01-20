@@ -21,10 +21,6 @@
 /* global variables: where reference to
 a defined location is appropriate */
 
-/* Dequote string used in deauotbiotypestr() */
-
-char btypecopy[MAX_BIOTYPE_LENGTH+1];
-
 int db_datoffst(DBLU_DBFMT fmt)
   /* return the start of normal data */
 {
@@ -965,7 +961,7 @@ switch (fqual)
     return("phosphothre");
     break;
   case FTQU_phosphoser:
-    return("phsophoser");
+    return("phosphoser");
     break;
   FTQU_unknown:
   default:
@@ -975,19 +971,7 @@ switch (fqual)
 }
 
 WRD_LUSTRCT *db_getkwstrct(DBLU_DBFMT dfmt)
-  /* create and fill datastructure for feature table key word parsing:
-    return("phosphoser
-
-  case FTQU_unknown:
-  default:
-    return("Unknown");
-    break;
-  }
-}
-
-WRD_LUSTRCT *db_getkwstrct(DBLU_DBFMT dfmt)
-  /* create and fill datastructure for feature table key word parsing");
-break;
+  /* create and fill datastructure for feature table key word parsing
 depending on dfmt.  return pointer to that structure, NULL for invalid
 dfmt  */
 {
@@ -6876,45 +6860,94 @@ while (tpt < tmax)
 return(NULL);
 }
 
-char *dequotebiotypestr(char *str)
-  /* return ptr to a string copy with
-double quotes removed. */
+int db_get_gtf_attr(char *token,
+                    char *attr2fnd,
+		    char **atvalue)
+/* scan gtf line attributes in token from start,
+looking for attr2fnd.  
+Return token count of matching string value, 0 for
+not found.
+If atvalue is non-NULL, return a strdup-ed value to
+it, noting that it must be freed down the track*/
 {
-int clen;
+int acnt;
+char *tokcpy;
+char *oricpy;
+char **tp;
+char *atts[GTFMAXATTRCNT];
+int apt;
+char *astrt;
+char *attcpy;
+char *attcpyori;
+char *attcpytok[3];
+int attcpycnt;
+char **attcpypt;
+int lentofind;
+char *blptr;
 
-clen = strlen(str) - 2;
-(void) strncpy(&btypecopy[0],(str+1),clen);
-btypecopy[clen] = '\0';
-return(&btypecopy[0]);
+/* work on copy, since strsep changes contents */
+tokcpy = oricpy = bas_strdup(token);
+acnt = 0;
+for (tp = atts; (*tp = strsep(&tokcpy,";")) != NULL;)     /* attribute/value pairs are ';' delimited */
+  if (**tp != '\0')
+    {
+    acnt++;
+    if (++tp >= &atts[GTFMAXATTRCNT])
+      break;
+    }
+/* now should have acnt No. of attr/value pairs of form 'gene_id "LOC12345678"' with or without leading ' ' */
+apt = 0;
+while (apt < acnt)
+  {
+  astrt =  atts[apt];
+  while ((*astrt == ' ') && (*astrt != '\0'))
+    astrt++;
+  blptr = index(astrt,' ');
+  lentofind = strlen(attr2fnd);
+  if ((((blptr != NULL) && ((blptr - astrt) == lentofind))) && (strncmp(astrt,attr2fnd,lentofind) == 0))  /* found the attribute type we want */
+    {
+/* take contents of "" */
+    attcpy = attcpyori = bas_strdup(atts[apt]);
+    attcpycnt = 0;
+    for (attcpypt = attcpytok; (*attcpypt = strsep(&attcpy,"\"")) != NULL;)    /* attcpytok[1] should contain quoted string */
+      {
+      if (**attcpypt != '\0')
+        {
+        attcpycnt++;
+        if (++attcpypt >= &attcpytok[3])
+          break;
+        }  
+      }
+    if (atvalue != NULL)
+      *atvalue = bas_strdup(attcpytok[1]);
+    memfree(oricpy);
+    memfree(attcpyori);
+    return(apt+1);
+    }
+  apt++;
+  }
+memfree(oricpy);
+return(0);
 }
 
-int db_gtf_attr_match(char *tokens[],
-                      int ntokns,
-                      WRD_LUSTRCT *entftkwds,
-                      DB_FTYPELT *ftwrds,
-                      char *attr2fnd)
-/* scan gtf line attributes from start,
-looking for attr2fnd.  tokens ends up with
-attribute types in index 8,10,12..., with attribute
-values in 9,11,13.... Return true if its value
-is feat2fnd.  tokens contain '"', so need to
-remove them, probably copy.
-Return token count of matching string value, 0 for
-not found */
+int db_get_gtf_att_for_list(char *attrtoks,
+                            DB_STR_ELT *wantlst,
+			    char **attval)
+/* scan attrtoks for the first element in wantlst.
+Return no of element if found.
+If attval  is non-NULL, return a strdup-ed value to
+it, noting that it must be freed down the track*/
 {
-int tpt;
+DB_STR_ELT *wntlstpt;
+int retval;
 
-tpt = 8;
-while (tpt < ntokns)
-  {
-  if (strcmp(tokens[tpt],attr2fnd) == 0)
-    {
-/* attribute values contain '"', so must lose them */
-    if (wlu_chkwrd(entftkwds,dequotebiotypestr(tokens[tpt+1])) != FTKW_unknown)
-      return(tpt+1);
-    }
-  tpt++;
-  }
+wntlstpt = wantlst;
+retval = 0;
+while (wntlstpt != NULL)
+  if ((retval = db_get_gtf_attr(attrtoks,wntlstpt->strval,attval)) > 0)
+    return(retval);
+  else
+    wntlstpt = wntlstpt->nxtselt;
 return(0);
 }
 
@@ -6945,7 +6978,7 @@ If wantedgtypes is non-NULL, then check that the
 gene_type attribute is valid. */
 {
 char **lp;
-char *tokens[GTFMAXTOKCNT];
+char *tokens[GTFTOKENCNT];
 char *strcpy;
 char *oricpy;
 int tcnt;
@@ -6962,8 +6995,9 @@ char *gennotecpy;
 DB_FEATSTRCT *firstidfeatp;
 DB_STR_ELT *strp;
 int p5val;
-DBLU_FTQUAL ftqual;
+DBP_BIOTYPE ftbiotype;
 int gtf_attr_mat_no;
+char *mat_biotypeattr_value;
 
 /* check line for leading '#' */
 if (*ln != '#')
@@ -6971,13 +7005,19 @@ if (*ln != '#')
 /* work on copy, since contents get altered */
   strcpy = oricpy = bas_strdup(ln);
   tcnt = 0;
-  for (lp = tokens; (*lp = strsep(&strcpy," \t=;")) != NULL;)
+/* only break on tabs */
+  for (lp = tokens; (*lp = strsep(&strcpy,"\t")) != NULL;)
     if (**lp != '\0')
       {
       tcnt++;
-      if (++lp >= &tokens[GTFMAXTOKCNT])
+      if (++lp >= &tokens[GTFTOKENCNT])
         break;
       }
+  if (tcnt != 9) /* invalid gtf line */
+    {
+    fprintf(stderr,"Invalid gtf line: '%s'\n",ln);
+    exit(1);
+    }
   if ((eltp = dbp_melemnt4id(*elmntlst,tokens[0],strcmp)) == NULL)
     {
     eltp = dbp_appnd_mult_elemnt(elmntlst,tokens[0],NULL);
@@ -6991,25 +7031,19 @@ if (*ln != '#')
   thisfeat = wlu_chkwrd(eltp->me_entstrptr->fkwlu,tokens[2]);
   /* do we want this sort of feature?? */
   eltp->me_entstrptr->nseen++;
-  if (((gtf_attr_mat_no = db_gtf_attr_match(tokens,tcnt,wantedgtypes,ftwrds,"gene_type")) > 0) ||
-       ((gtf_attr_mat_no = db_gtf_attr_match(tokens,tcnt,wantedgtypes,ftwrds,"gene_biotype")) > 0))  /* T2T gtf uses this form of attribute */
-    ftqual = FTQU_biotype;
-  else
-    ftqual = FTQU_unknown;
-  if ((db_ptr4felt(ftwrds,thisfeat) != NULL) && ((wantedgtypes == NULL) || (ftqual != FTQU_unknown)))
+  mat_biotypeattr_value = NULL;
+  if (((gtf_attr_mat_no = db_get_gtf_attr(tokens[tcnt-1],"gene_type",&mat_biotypeattr_value)) > 0) ||
+       ((gtf_attr_mat_no = db_get_gtf_attr(tokens[tcnt-1],"gene_biotype",&mat_biotypeattr_value)) > 0))  /* T2T gtf uses this form of attribute */
+    {
+    if (mat_biotypeattr_value != NULL)
+      ftbiotype = wlu_chkwrd(wantedgtypes,mat_biotypeattr_value);
+    else
+      ftbiotype = BIOTYPE_unknown;
+    }
+  if ((db_ptr4felt(ftwrds,thisfeat) != NULL) && ((wantedgtypes == NULL) || (ftbiotype != BIOTYPE_unknown)))
     {
 /*  have we already seen this feature?? */
-    tpt = 8;
-    thisid = NULL;
-    while ((tpt < tcnt) && (tpt < GTFMAXTOKCNT - 2))
-      if (db_matstrelt(attr,tokens[tpt],strcmp) != NULL)
-        {
-        thisid = tokens[tpt+1];
-        tpt = tcnt;
-        }
-      else
-        tpt++;
-    if (thisid != NULL)
+    if (db_get_gtf_att_for_list(tokens[tcnt-1],attr,&thisid) > 0)
       {
       if (((firstidfeatp = (DB_FEATSTRCT *) wlu_chkwrdptr(eltp->genids,thisid)) == NULL) ||
            ((ftptr = db_nxtfeat4typenid(firstidfeatp,thisfeat,
@@ -7044,7 +7078,7 @@ db_sayafeatcore(stdout,eltp->me_entstrptr,ftptr,0); */
         else
           ftptr->strctsens = DB_sens_comp;
         ftptr->idp = bas_strdup(thisid);
-        ftptr->infoend = db_appnielt(&ftptr->infolist,FTQU_biotype,bas_strdup(dequotebiotypestr(tokens[gtf_attr_mat_no])));
+        ftptr->infoend = db_appnielt(&ftptr->infolist,FTQU_biotype,mat_biotypeattr_value);
         }
       else /* does this new feature qualify an existing one? (e.g. exons in gene) */
         {
@@ -7068,6 +7102,7 @@ db_sayafeatcore(stdout,eltp->me_entstrptr,ftptr,0); */
                                                 firstidfeatp->strctsens,NULL);
           }
         }
+      memfree(thisid);
       }
     }
   memfree(oricpy);
@@ -7150,4 +7185,3 @@ while (mep != NULL)
   }
 return(rcnt);
 }
-
