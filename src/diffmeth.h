@@ -1,6 +1,8 @@
 /* diffmeth.h: defs for diffmeth count-binning stuff */
 
-#define PROG_VERSION 1.83
+#define PROG_VERSION 1.84
+/* correct multi-sample anova sample ID strings: Apr-2026 *
+/* #define PROG_VERSION 1.83 */
 /* -o option for user output file: May-2024 */
 /* #define PROG_VERSION 1.82 */
 /* count CpG details for WGBS: Nov-2022 */

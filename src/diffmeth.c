@@ -2983,16 +2983,16 @@ chrcnt = 0;
 while (cpy > 0)
   {
   chrcnt++;
-  cpy /= 26;
+  cpy /= 27;
   }
 sp = &istring[chrcnt];
 *sp = '\0';
 sp--;
 cpy = cnt;
-while (cpy > 0)
+while (chrcnt-- > 0)
   {
-  *sp = 'a' + cpy%26 - 1;
-  cpy /= 26;
+  *sp = 'a' + imax(cpy%27,1) - 1;
+  cpy /= 27;
   sp--;
   }
 return(&istring[0]);
