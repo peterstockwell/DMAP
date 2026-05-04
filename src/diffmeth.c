@@ -35,7 +35,6 @@ Or read SAM/BAM files from bismark or other  mapping runs */
 RBC_DBG debuglevel;
 RBC_SRC_STYLE srcstyle;
 int glblreadlen;          /* global value for readlength */
-char istring[20];
 
 int err_msg(char *fmt,
             ...)
@@ -2969,35 +2968,6 @@ a non-NULL totldf */
 return(dm_anovapr4bin(rpp,binp,totldf,NULL,NULL));
 }
 
-char *dm_int2letterstring(int cnt)
-  /* return a character string to conform
-to cnt, "a","b","c",.."z","aa","ab".. for
-1,2,3... */
-{
-int chrcnt;
-int cpy;
-char *sp;
-
-cpy = cnt;
-chrcnt = 0;
-while (cpy > 0)
-  {
-  chrcnt++;
-  cpy /= 27;
-  }
-sp = &istring[chrcnt];
-*sp = '\0';
-sp--;
-cpy = cnt;
-while (chrcnt-- > 0)
-  {
-  *sp = 'a' + imax(cpy%27,1) - 1;
-  cpy /= 27;
-  sp--;
-  }
-return(&istring[0]);
-}
-
 void dm_diffcntsscan4abin(DM_OUTMODE omod,
                           DM_RUNPARS *rparsp,
                           FILE *ofl,
@@ -3235,10 +3205,9 @@ switch (omod)
                 if (dm_chkcnts4mask(rparsp,rparsp->binchkmask,binp,c1p) &&
                       ((c1p->methcnt > 0) || (c1p->unmethcnt > 0)))
                   {
-                  fprintf(ofl,"%s%s%s=%.4f",(comma?",":""),
+                  fprintf(ofl,"%s%s#%d=%.4f",(comma?",":""),
                             ((*(rparsp->groupidlist+cp)!=NULL)?*(rparsp->groupidlist+cp):"<null>"),
-                            dm_int2letterstring(smpl),
-                            (float)c1p->methcnt/((float) c1p->methcnt+(float)c1p->unmethcnt));
+                            smpl,(float)c1p->methcnt/((float) c1p->methcnt+(float)c1p->unmethcnt));
                   comma++;
                   }
                 smpl++;
