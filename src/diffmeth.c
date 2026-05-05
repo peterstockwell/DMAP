@@ -4176,6 +4176,11 @@ for (ap = 1; ap < argc; ap++)
             err_msg_die("Can't open output file '%s'\n",argv[ap]);
           }
         break;
+      case 'v':  /* advise version (not documented in -h) */
+        fprintf(stdout,"%s v%.2f: differential methylation analysis for RRBS & WGBS\n",
+                  argv[0],PROG_VERSION);
+        exit(0);
+        break;
       case 'h':
         say_usage(rpars.outfile,argv[0]);
         exit(0);
