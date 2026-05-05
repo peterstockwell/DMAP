@@ -1928,6 +1928,11 @@ for (ap = 1; ap < argc; ap++)
         else
           rpp->srcbuflen = (int) strtol(argv[ap],NULL,10);
         break;
+      case 'v':  /* print version info (-v not listed in -h) */
+        fprintf(stdout,"%s v%.2f: proximal genes for chromosomal position table for a feature table\n",
+                  argv[0],PROG_VERS);
+        exit(0);
+        break;
       case 'h':
         igl_sayusage(rpp->outfile,argv[0]);
         exit(0);
