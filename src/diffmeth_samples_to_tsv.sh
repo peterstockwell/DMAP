@@ -6,6 +6,9 @@
 #
 # Peter Stockwell May-2025
 #
+# modified to work with diffmeth v1.85 multigroup anova output
+# Peter Stockwell May-2026
+#
 # run with no parameters for help info
 #
 
@@ -82,6 +85,9 @@ cat << 'SCRIPT2' > dmeth_to_cols.awk
 #
 # Version 1.3: to manage multi-group ANOVA runs
 # Peter Stockwell May-2025
+#
+# Version 1.4: modified to work with diffmeth v1.85 multi-group anova
+# Peter Stockwell May-2026
 
 BEGIN{FS = "\t";
 smplno = 0;
@@ -95,15 +101,17 @@ while (cmd | getline smplid > 0)
 close(cmd);
 # look for number of groups: by checking max ID length
 # since IDs like R1a,R2a, etc. indicate > 2 groups.
-maxidlen = 0;
+# diffmeth v1.85 now uses '#' to differentiate group and sample count
+maxgrpidlen = 0;
 for (i = 1; i<= smplno; i++)
   {
+  nsid = split(smpllist[i],smplstsplit,"#");
+  if ((idlen = length(smplstsplit[1])) > maxgrpidlen)
+    maxgrpidlen = idlen;
   chararray[nthchar(smpllist[i],1)]++;
-  if ((idlen = length(smpllist[i])) > maxidlen)
-    maxidlen = idlen;
   }
 nogroups = arraylength(chararray);
-if (maxidlen == 2)
+if (maxgrpidlen == 1)
   baseidlen = 1;     # must have R1, R2, S1, S2 type IDs 
 else
   {
@@ -116,6 +124,9 @@ else
     }
   nogroups = arraylength(chararray);
   }
+
+#printf("nogroups=%s\n",nogroups);
+
 # generate baseidlen letter array of IDs
 gno = 0;
 prv2id = "";
@@ -254,6 +265,9 @@ if (a <= b)
 else
   return b;
 }
+# dmeth_to_cols.awk: convert diffmeth output to tab delimited text,
+# especially the last column of methylation proportions
+#
 SCRIPT2
 
 # now call dmeth_to_cols.awk on input file
