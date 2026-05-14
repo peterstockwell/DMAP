@@ -315,10 +315,10 @@ value else return the set parameter.  word comparisons are based on case
 {
 WRD_LU_REC *wrpt;
 
-if ((wrpt = wlu_wrd2lurec(wlus,uwrd)) != NULL)
-  return((int)((long) wrpt->retval));
-else
-  return((int)((long) wlus->failret));  /* not found */
+if (uwrd != NULL)
+  if ((wrpt = wlu_wrd2lurec(wlus,uwrd)) != NULL)
+    return((int)((long) wrpt->retval));
+return((int)((long) wlus->failret));  /* not found */
 }
 
 int wlu_chkint(WRD_LUSTRCT *wlus,

@@ -95,8 +95,10 @@ ChrNo. start stop... */
 /* correct gtf/gff3 srcbuflen issue: 6-Jan-2026 */
 /* #define PROG_VERS 0.33 */
 /* include dbpars updates for T2T gtf variations: 9-Jan-2026 */
-#define PROG_VERS 0.34
+/* #define PROG_VERS 0.34 */
 /* further dbpars refinement for T2T gtf: 21-Jan-2026 */
+#define PROG_VERS 0.35
+/* manage SeqMonk annotation IDS for GRCh38 V113 with lines 'ID   GRCh38_v113:1standard; DNA; UNK; 248956422 BP.' */
 
 #define DEF_SRCBUFLEN 2048
 

@@ -2355,6 +2355,8 @@ char *pcolon;
 char *strtok_cntxt;
 char *newgbtok;
 int i;
+char *rnm;
+char *stdptr;
 
 switch (fmt)
   {
@@ -2426,6 +2428,19 @@ switch (fmt)
         stopol = SQTP_linear;
         svers = 0;
         nat = (DB_NATYPE) wlu_chkwrd(nawlu,tokns[4]);
+        break;
+      case 6:      /* later GRCh38 style with lines: 'ID   GRCh38_v113:1standard; DNA; UNK; 248956422 BP.' */
+        if ((pcolon = rindex(tokns[1],':')) == NULL)
+          rnm = bas_strdup(tokns[1]);
+        else
+          rnm = bas_strdup(pcolon+1);
+        if ((stdptr = strstr(rnm,"standard")) != NULL)
+	  *stdptr = '\0';
+	nm = bas_strdup(rnm);
+	memfree(rnm);
+        stopol = SQTP_linear;
+        svers = 0;
+        nat = (DB_NATYPE) wlu_chkwrd(nawlu,tokns[3]);
         break;
       case 10:
       default:
