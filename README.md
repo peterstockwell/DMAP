@@ -70,7 +70,9 @@ or as a git clone.  There are two options:
 1. Downloading DMAP-main.zip from github.com/peterstockwell/DMAP will
 generate a local file which can be unpacked with:
 
+```
 unzip DMAP-master.zip
+```
 
 generating a directory DMAP-master containing three directories:
 ```
@@ -83,15 +85,19 @@ download the DMAP directory:
 
 In either case the set can be built with the following commands:
 
+```
 cd DMAP-master/src
 
 make
+```
 
 or
 
+```
 cd DMAP/src
 
 make
+```
 
 Some warnings may appear but these can be ignored.  The executables
 will be in the src directory - no install targets are provided, the
@@ -105,7 +111,9 @@ should be obtained and installed (www.zlib.net).  If that is not
 possible then you can build the program without zlib, but it will not
 be able to read bam files.  To do this:
 
+```
 make diffmeth_nozlib
+```
 
 and rename the diffmeth_nozlib executable to diffmeth if required.
 
